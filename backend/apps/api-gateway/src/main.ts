@@ -1,0 +1,42 @@
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppGatewayModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppGatewayModule);
+
+  // Global Validation Pipe — tự động validate DTO bằng class-validator
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,     // Bỏ qua các field không khai báo trong DTO
+      transform: true,     // Tự động convert kiểu dữ liệu
+      forbidNonWhitelisted: true, // Trả lỗi nếu client gửi thêm field lạ
+    }),
+  );
+
+  // CORS — Cho phép Frontend gọi API
+  app.enableCors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    credentials: true,
+  });
+
+  // Swagger API Documentation
+  const config = new DocumentBuilder()
+    .setTitle('WDP301 API Gateway')
+    .setDescription('🏥 Hệ thống quản lý chuỗi nhà thuốc WDP301 — API Documentation')
+    .setVersion('1.0')
+    .addBearerAuth()  // Thêm nút "Authorize" trên Swagger UI để test JWT
+    .addTag('🔐 Authentication', 'Đăng nhập, Đăng ký, Đăng xuất')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const port = process.env.PORT || 4000;
+  await app.listen(port);
+  console.log(`\n🚀 API Gateway running at: http://localhost:${port}`);
+  console.log(`📚 Swagger Docs at:        http://localhost:${port}/api/docs\n`);
+}
+
+bootstrap();

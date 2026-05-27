@@ -112,15 +112,15 @@ sequenceDiagram
 
 ## 3. Thành Phần Hệ Thống & Vai Trò (System Component Directory)
 
-| Thành phần | Công nghệ sử dụng | Cấu hình & Vai trò chính |
-| :--- | :--- | :--- |
-| **Load Balancer** | Nginx | Điều phối tải (Round Robin), xử lý SSL Termination, định tuyến API Gateway. Expose cổng `80` và `443`. |
-| **API Gateway** | NestJS REST API | Điểm truy cập HTTP duy nhất. Xác thực (JWT Auth), kiểm tra/ghi Cache (Redis Store), xuất bản các event lên Kafka. Không chứa logic nghiệp vụ và không kết nối trực tiếp DB. |
-| **Message Broker** | Apache Kafka (KRaft mode) | Kênh phân phối sự kiện (Event Bus). Lưu trữ bền vững các tin nhắn, đảm bảo hệ thống lỏng lẻo (loose coupling) và có thể mở rộng xử lý song song thông qua Partitioning. |
-| **Cache Layer** | Redis | Bộ nhớ đệm InMemory lưu trữ thực thể (User, Session). Sử dụng chiến lược Cache-Aside và TTL (Time to Live) để tự động làm mới tài nguyên. |
-| **Microservices** | NestJS Microservice | Dịch vụ chuyên biệt (như `users-service`). Nhận thông điệp từ Kafka, thực hiện xử lý nghiệp vụ nặng, tương tác trực tiếp với Database. |
-| **Database** | MongoDB Atlas | Hệ quản trị cơ sở dữ liệu phi quan hệ, lưu trữ lâu dài thông tin thực thể với hiệu năng ghi cao. |
-| **Monitoring** | Prometheus & Grafana | Thu thập tài nguyên hệ thống (Prometheus Scraper) qua endpoint `/metrics` của API Gateway và vẽ biểu đồ trực quan (Grafana). |
+| Thành phần         | Công nghệ sử dụng         | Cấu hình & Vai trò chính                                                                                                                                                    |
+| :-------------------| :--------------------------| :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Load Balancer**  | Nginx                     | Điều phối tải (Round Robin), xử lý SSL Termination, định tuyến API Gateway. Expose cổng `80` và `443`.                                                                      |
+| **API Gateway**    | NestJS REST API           | Điểm truy cập HTTP duy nhất. Xác thực (JWT Auth), kiểm tra/ghi Cache (Redis Store), xuất bản các event lên Kafka. Không chứa logic nghiệp vụ và không kết nối trực tiếp DB. |
+| **Message Broker** | Apache Kafka (KRaft mode) | Kênh phân phối sự kiện (Event Bus). Lưu trữ bền vững các tin nhắn, đảm bảo hệ thống lỏng lẻo (loose coupling) và có thể mở rộng xử lý song song thông qua Partitioning.     |
+| **Cache Layer**    | Redis                     | Bộ nhớ đệm InMemory lưu trữ thực thể (User, Session). Sử dụng chiến lược Cache-Aside và TTL (Time to Live) để tự động làm mới tài nguyên.                                   |
+| **Microservices**  | NestJS Microservice       | Dịch vụ chuyên biệt (như `users-service`). Nhận thông điệp từ Kafka, thực hiện xử lý nghiệp vụ nặng, tương tác trực tiếp với Database.                                      |
+| **Database**       | MongoDB Atlas             | Hệ quản trị cơ sở dữ liệu phi quan hệ, lưu trữ lâu dài thông tin thực thể với hiệu năng ghi cao.                                                                            |
+| **Monitoring**     | Prometheus & Grafana      | Thu thập tài nguyên hệ thống (Prometheus Scraper) qua endpoint `/metrics` của API Gateway và vẽ biểu đồ trực quan (Grafana).                                                |
 
 ---
 

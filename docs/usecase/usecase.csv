@@ -1,5 +1,5 @@
 STT,Nhóm Module,Mã UC,Tên Chức Năng,QL Chi nhánh,NV Bán hàng,Thủ kho,Khách hàng,Admin Tổng,Microservice
-1,Bán hàng,UC-01,Bán lẻ – tìm kiếm & thêm thuốc vào giỏ hàng,✓,✓,-,-,✓,Order Service
+1,Bán hàng,UC-01,Bán lẻ – tìm kiếm & thêm thuốc vào giỏ hàng,✓,b,-,-,✓,Order Service
 2,Bán hàng,UC-02,Bán lẻ – áp dụng khuyến mãi / mã giảm giá,✓,✓,-,-,✓,Promotion & Pricing Service
 3,Bán hàng,UC-03,Bán lẻ – xác nhận thanh toán & in hóa đơn,✓,✓,-,-,✓,Payment & Billing Service
 4,Bán hàng,UC-04,Bán theo đơn thuốc – quét QR đơn điện tử,✓,✓,-,-,✓,Order Service

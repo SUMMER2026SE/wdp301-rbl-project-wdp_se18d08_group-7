@@ -86,7 +86,7 @@ Bao gồm các thao tác bán hàng, tính tiền, áp dụng khuyến mãi và 
 *   **Chăm sóc khách hàng**: UC-43, UC-44
 *   **Xử lý đơn hàng**: UC-01, UC-04, UC-06, UC-08, UC-11
 *   **Thanh toán và Công nợ**: UC-03, UC-07, UC-09
-*   **Khuyến mãi và Giá bán**: UC-02, UC-47, UC-48
+*   **Khuyến mãi và Giá bán**: UC-02, UC-47, UC-48       
 
 ### Giai đoạn 4: Tính năng nâng cao và Báo cáo thống kê
 Thêm các tính năng như tích điểm, gửi thông báo tự động và các báo cáo doanh thu, tồn kho.
