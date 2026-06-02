@@ -76,34 +76,23 @@ export function Dashboard() {
           ]
         };
       case "head_branch":
-        return {
-          title: "Điều hành Tổng Chi nhánh",
-          subtitle: "Dashboard phân tích kinh doanh đa cơ sở, phân bổ hàng hóa & AI Insights.",
-          stats: [
-            { title: "Doanh thu Toàn Chuỗi (Tháng)", value: "3,450,210,000đ", icon: <DollarSign size={20} />, trend: "+20% so với tháng trước", trendUp: true },
-            { title: "Hiệu suất trung bình", value: "92%", icon: <Activity size={20} />, trend: "Vượt chỉ tiêu KPIS", trendUp: true },
-          ],
-          actions: [
-            { id: "UC-26", name: "So sánh hiệu suất chuỗi", icon: <Building2 size={24} />, color: "bg-blue-50 text-blue-600 border-blue-200" },
-            { id: "UC-28", name: "Đồng bộ DM Toàn chuỗi", icon: <RotateCcw size={24} />, color: "bg-indigo-50 text-indigo-600 border-indigo-200" },
-            { id: "UC-34", name: "Dự báo Nhu cầu (AI)", icon: <Sparkles size={24} />, color: "bg-emerald-50 text-emerald-600 border-emerald-200" },
-            { id: "UC-50", name: "Báo cáo Doanh thu", icon: <Activity size={24} />, color: "bg-amber-50 text-amber-600 border-amber-200" },
-          ]
-        };
       case "admin":
       default:
         return {
-          title: "Hệ thống Quản trị Trung tâm (Admin)",
-          subtitle: "Giám sát hệ thống, phân quyền, phân tích hạ tầng và bảo mật dữ liệu.",
+          title: "Điều hành Hệ thống & Tổng Chi nhánh",
+          subtitle: "Giám sát hệ thống, quản trị chuỗi cơ sở, phân tích hạ tầng và bảo mật dữ liệu.",
           stats: [
+            { title: "Doanh thu Toàn Chuỗi (Tháng)", value: "3,450,210,000đ", icon: <DollarSign size={20} />, trend: "+20% so với tháng trước", trendUp: true },
             { title: "Nhân sự đang hoạt động", value: "48 / 50", icon: <Users size={20} />, trend: "2 off-shift", trendUp: true },
             { title: "Phát hiện bất thường bảo mật", value: "0", icon: <ShieldCheck size={20} />, trend: "Hệ thống ổn định", trendUp: true },
           ],
           actions: [
             { id: "UC-58", name: "Quản lý Role & Phân quyền", icon: <ShieldCheck size={24} />, color: "bg-slate-100 text-slate-700 border-slate-300" },
+            { id: "UC-26", name: "So sánh hiệu suất chuỗi", icon: <Building2 size={24} />, color: "bg-blue-50 text-blue-600 border-blue-200" },
+            { id: "UC-28", name: "Đồng bộ DM Toàn chuỗi", icon: <RotateCcw size={24} />, color: "bg-indigo-50 text-indigo-600 border-indigo-200" },
+            { id: "UC-34", name: "Dự báo Nhu cầu (AI)", icon: <Sparkles size={24} />, color: "bg-emerald-50 text-emerald-600 border-emerald-200" },
+            { id: "UC-48", name: "Cấu hình Global Price", icon: <DollarSign size={24} />, color: "bg-amber-50 text-amber-600 border-amber-200" },
             { id: "UC-59", name: "Audit Logs Toàn hệ thống", icon: <History size={24} />, color: "bg-slate-100 text-slate-700 border-slate-300" },
-            { id: "UC-24", name: "Mở rộng System Chi nhánh", icon: <Building2 size={24} />, color: "bg-blue-50 text-blue-600 border-blue-200" },
-            { id: "UC-48", name: "Cấu hình Global Price", icon: <DollarSign size={24} />, color: "bg-emerald-50 text-emerald-600 border-emerald-200" },
           ]
         };
     }

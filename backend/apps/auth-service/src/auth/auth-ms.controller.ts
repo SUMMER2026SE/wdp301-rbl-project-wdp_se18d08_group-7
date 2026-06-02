@@ -24,7 +24,7 @@ export class AuthMsController {
   @MessagePattern('auth.login')
   async handleLogin(@Payload() data: string) {
     try {
-      const dto: LoginDto = JSON.parse(data);
+      const dto: LoginDto = typeof data === 'string' ? JSON.parse(data) : data;
       console.log(`📨 [Auth MS] Nhận yêu cầu đăng nhập: ${dto.email}`);
       return await this.authService.login(dto);
     } catch (error) {
@@ -41,7 +41,7 @@ export class AuthMsController {
   @MessagePattern('auth.register')
   async handleRegister(@Payload() data: string) {
     try {
-      const dto: RegisterDto = JSON.parse(data);
+      const dto: RegisterDto = typeof data === 'string' ? JSON.parse(data) : data;
       console.log(`📨 [Auth MS] Nhận yêu cầu đăng ký: ${dto.email}`);
       return await this.authService.register(dto);
     } catch (error) {
@@ -61,6 +61,49 @@ export class AuthMsController {
       return { valid: true, payload };
     } catch (error) {
       return { valid: false, message: error.message };
+    }
+  }
+
+  /**
+   * Topic: auth.google.login
+   */
+  @MessagePattern('auth.google.login')
+  async handleGoogleLogin(@Payload() data: any) {
+    try {
+      return await this.authService.googleLogin(data);
+    } catch (error) {
+      console.error(`❌ [Auth MS] Lỗi Google Login:`, error.message);
+      return { error: true, message: error.message, statusCode: error.status || 400 };
+    }
+  }
+
+  /**
+   * Topic: auth.forgot.password
+   */
+  @MessagePattern('auth.forgot.password')
+  async handleForgotPassword(@Payload() data: string) {
+    try {
+      const dto = typeof data === 'string' ? JSON.parse(data) : data;
+      console.log(`📨 [Auth MS] Yêu cầu quên mật khẩu: ${dto.email}`);
+      return await this.authService.generateAndSendResetToken(dto.email);
+    } catch (error) {
+      console.error(`❌ [Auth MS] Lỗi quên mật khẩu:`, error.message);
+      return { error: true, message: error.message, statusCode: error.status || 400 };
+    }
+  }
+
+  /**
+   * Topic: auth.reset.password
+   */
+  @MessagePattern('auth.reset.password')
+  async handleResetPassword(@Payload() data: string) {
+    try {
+      const dto = typeof data === 'string' ? JSON.parse(data) : data;
+      console.log(`📨 [Auth MS] Yêu cầu đặt lại mật khẩu cho: ${dto.email}`);
+      return await this.authService.resetPassword(dto.email, dto.token, dto.newPassword);
+    } catch (error) {
+      console.error(`❌ [Auth MS] Lỗi đặt lại mật khẩu:`, error.message);
+      return { error: true, message: error.message, statusCode: error.status || 400 };
     }
   }
 
@@ -88,7 +131,7 @@ export class AuthMsController {
    */
   @EventPattern('auth.event.logout')
   async handleLogout(@Payload() data: string) {
-    const { userId, email } = JSON.parse(data);
+    const { userId, email } = typeof data === 'string' ? JSON.parse(data) : data;
     console.log(`📝 [Auth MS] User ${email} (${userId}) đã đăng xuất lúc ${new Date().toISOString()}`);
     // TODO: Ghi Audit Log vào database
   }

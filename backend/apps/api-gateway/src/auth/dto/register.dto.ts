@@ -7,6 +7,7 @@ export enum UserRole {
   STAFF = 'staff',
   WAREHOUSE = 'warehouse',
   CUSTOMER = 'customer',
+  USER = 'user',
 }
 
 export class RegisterDto {
@@ -25,7 +26,7 @@ export class RegisterDto {
   @MaxLength(100)
   password: string;
 
-  @ApiProperty({ example: 'customer', enum: UserRole, required: false })
+  @ApiProperty({ example: 'user', enum: UserRole, required: false })
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;

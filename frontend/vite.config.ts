@@ -2,6 +2,9 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import dns from 'dns';
+
+dns.setDefaultResultOrder('ipv4first');
 
 export default defineConfig(() => {
   return {
@@ -19,7 +22,7 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
         '/api': {
-          target: 'http://localhost:4000',
+          target: process.env.DOCKER ? 'http://backend:4000' : 'http://backend:4000', // Or just 'http://backend:4000'
           changeOrigin: true,
         },
       },

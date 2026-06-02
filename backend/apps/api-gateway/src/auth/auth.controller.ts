@@ -10,7 +10,10 @@ import {
   HttpException,
   UseGuards,
   Request,
+  Req,
+  Res,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ClientKafka } from '@nestjs/microservices';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -18,6 +21,8 @@ import { lastValueFrom } from 'rxjs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('🔐 Authentication')
@@ -40,6 +45,8 @@ export class AuthGwController implements OnModuleInit {
     this.kafkaClient.subscribeToResponseOf('auth.register');
     this.kafkaClient.subscribeToResponseOf('auth.validate.token');
     this.kafkaClient.subscribeToResponseOf('auth.get.user.by.id');
+    this.kafkaClient.subscribeToResponseOf('auth.forgot.password');
+    this.kafkaClient.subscribeToResponseOf('auth.reset.password');
     await this.kafkaClient.connect();
     console.log('✅ [API Gateway] Đã kết nối tới Kafka và đăng ký Reply Topics');
   }
@@ -66,6 +73,65 @@ export class AuthGwController implements OnModuleInit {
     }
 
     return result;
+  }
+
+  // ============================================================
+  // POST /api/auth/forgot-password — Yêu cầu quên mật khẩu
+  // ============================================================
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Yêu cầu mã xác nhận qua email để đổi mật khẩu' })
+  @ApiResponse({ status: 200, description: 'Đã gửi mã xác nhận' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    const result: any = await lastValueFrom(
+      this.kafkaClient.send('auth.forgot.password', JSON.stringify(dto)),
+    );
+    if (result?.error) throw new HttpException(result.message, result.statusCode || 400);
+    return result;
+  }
+
+  // ============================================================
+  // POST /api/auth/reset-password — Đặt lại mật khẩu
+  // ============================================================
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đặt lại mật khẩu mới bằng mã OTP' })
+  @ApiResponse({ status: 200, description: 'Đổi mật khẩu thành công' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    const result: any = await lastValueFrom(
+      this.kafkaClient.send('auth.reset.password', JSON.stringify(dto)),
+    );
+    if (result?.error) throw new HttpException(result.message, result.statusCode || 400);
+    return result;
+  }
+
+  // =========================================================================
+  // GOOGLE OAUTH2
+  // =========================================================================
+  
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Bắt đầu luồng đăng nhập Google' })
+  async googleAuth(@Req() req) {
+    // Sẽ được Passport tự động redirect sang Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Google Callback' })
+  async googleAuthRedirect(@Req() req, @Res() res) {
+    // Lúc này req.user đã chứa thông tin profile từ GoogleStrategy
+    // Gửi event 'auth.google.login' qua Kafka để Auth Microservice xử lý cấp JWT
+    const result: any = await lastValueFrom(
+      this.kafkaClient.send('auth.google.login', req.user)
+    );
+
+    if (result.error) {
+      return res.redirect(`http://localhost:3000/login?error=${encodeURIComponent(result.message)}`);
+    }
+
+    // Redirect về Frontend kèm JWT Token
+    return res.redirect(`http://localhost:3000/login?token=${result.access_token}`);
   }
 
   // ============================================================

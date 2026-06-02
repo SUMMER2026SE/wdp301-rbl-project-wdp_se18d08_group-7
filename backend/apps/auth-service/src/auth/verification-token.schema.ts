@@ -20,8 +20,8 @@ export class VerificationToken extends Document {
   @Prop({ default: false })
   isUsed: boolean;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  @Prop({ type: String, required: true })
+  userId: string;
 }
 
 export const VerificationTokenSchema = SchemaFactory.createForClass(VerificationToken);

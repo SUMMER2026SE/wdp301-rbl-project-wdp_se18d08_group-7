@@ -22,7 +22,7 @@ async function bootstrap() {
         },
         consumer: {
           // Consumer Group ID — tất cả các pod cùng group sẽ chia nhau xử lý message
-          groupId: process.env.KAFKA_GROUP_ID || 'wdp301-consumers',
+          groupId: (process.env.KAFKA_GROUP_ID || 'wdp301-consumers') + '-auth',
         },
       },
     },

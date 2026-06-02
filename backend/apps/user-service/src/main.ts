@@ -13,7 +13,7 @@ async function bootstrap() {
           brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
         },
         consumer: {
-          groupId: process.env.KAFKA_GROUP_ID || 'wdp301-consumers',
+          groupId: (process.env.KAFKA_GROUP_ID || 'wdp301-consumers') + '-user',
         },
       },
     },

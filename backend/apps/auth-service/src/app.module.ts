@@ -17,4 +17,3 @@ import { AuthMsModule } from './auth/auth-ms.module';
   ],
 })
 export class AuthServiceAppModule {}
-export class AuthServiceAppModule {}

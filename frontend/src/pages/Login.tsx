@@ -1,14 +1,31 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, Mail, Lock, Building2, PackageSearch, Store, Pill, ShieldCheck, CheckCircle2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowRight, Mail, Lock, Building2, PackageSearch, Store, Pill, ShieldCheck, CheckCircle2, Users } from "lucide-react";
 
 export function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [role, setRole] = useState("admin");
   const [email, setEmail] = useState("admin@vinapharmacy.com");
   const [password, setPassword] = useState("123456");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Xử lý khi đăng nhập Google thành công và redirect về kèm token
+    const token = searchParams.get('token');
+    const urlError = searchParams.get('error');
+
+    if (token) {
+      localStorage.setItem("token", token);
+      localStorage.setItem("userRole", "user"); // Mặc định role user từ google login
+      navigate('/profile');
+    }
+
+    if (urlError) {
+      setError(urlError);
+    }
+  }, [searchParams, navigate]);
 
   const roles = [
     { id: "admin", label: "Admin Tổng", subLabel: "Hệ thống", email: "admin@vinapharmacy.com", icon: <ShieldCheck size={20} />, activeColor: "bg-rose-50 border-rose-200 text-rose-700", iconColor: "text-rose-500" },
@@ -16,6 +33,7 @@ export function Login() {
     { id: "warehouse", label: "Quản lý kho", subLabel: "Kho vận", email: "warehouse@vinapharmacy.com", icon: <PackageSearch size={20} />, activeColor: "bg-amber-50 border-amber-200 text-amber-700", iconColor: "text-amber-500" },
     { id: "branch", label: "QL Chi nhánh", subLabel: "Cơ sở", email: "manager@vinapharmacy.com", icon: <Store size={20} />, activeColor: "bg-emerald-50 border-emerald-200 text-emerald-700", iconColor: "text-emerald-500" },
     { id: "pharmacist", label: "Thuốc / Bán", subLabel: "Dược sĩ", email: "pharmacist@vinapharmacy.com", icon: <Pill size={20} />, activeColor: "bg-blue-50 border-blue-200 text-blue-700", iconColor: "text-[#0057cd]" },
+    { id: "user", label: "Người dùng", subLabel: "Khách hàng", email: "user@vinapharmacy.com", icon: <Users size={20} />, activeColor: "bg-purple-50 border-purple-200 text-purple-700", iconColor: "text-purple-500" },
   ];
 
   const handleRoleSelect = (selectedRole: any) => {
@@ -28,15 +46,16 @@ export function Login() {
   const redirectByRole = (userRole: string) => {
     switch (userRole) {
       case "admin":
-        return "/dashboard/ai-insights";
       case "head_branch":
-        return "/dashboard/branches";
+        return "/dashboard";
       case "warehouse":
         return "/dashboard/inventory";
       case "branch":
         return "/dashboard/reports";
       case "pharmacist":
         return "/dashboard/sales";
+      case "user":
+        return "/profile";
       default:
         return "/dashboard";
     }
@@ -133,8 +152,13 @@ export function Login() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Mật khẩu</label>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-bold text-slate-700">Mật khẩu</label>
+                <Link to="/forgot-password" className="text-sm font-semibold text-[#0057cd] hover:underline">
+                  Quên mật khẩu?
+                </Link>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
                   <Lock size={18} />
@@ -166,7 +190,31 @@ export function Login() {
           {loading ? 'Đang xử lý...' : 'Truy cập hệ thống quản trị'}
           {!loading && <ArrowRight size={18} />}
         </button>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-slate-500">Hoặc tiếp tục với</span>
+          </div>
+        </div>
+
+        <a 
+          href="http://localhost:4000/api/auth/google"
+          className="w-full flex justify-center items-center gap-3 py-3.5 px-4 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+        >
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+          Đăng nhập với Google
+        </a>
       </form>
+
+      <div className="mt-8 text-center text-sm font-medium border-t border-slate-200/60 pt-6">
+        <span className="text-slate-400">Chưa có tài khoản? </span>
+        <Link to="/register" className="font-bold text-[#0057cd] hover:text-[#00419e] transition-colors hover:underline">
+          Đăng ký ngay
+        </Link>
+      </div>
     </>
   );
 }

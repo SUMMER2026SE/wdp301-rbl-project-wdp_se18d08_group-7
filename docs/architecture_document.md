@@ -1,4 +1,5 @@
 # Kiến Trúc Hệ Thống Vi Dịch Vụ Hướng Sự Kiện (Event-Driven Microservices Architecture)
+
 ## Hệ Thống WDP301 Enterprise Platform
 
 Tài liệu này mô tả chi tiết kiến trúc kỹ thuật toàn diện cho hệ thống WDP301, chuyển đổi từ mô hình đơn khối (Monolith) sang kiến trúc **Event-Driven Microservices** sử dụng **Apache Kafka**, và **Redis Cache Layer**.
@@ -22,7 +23,6 @@ graph TD
     subgraph K8sCluster["Kubernetes (K8s) Cluster"]
         Ingress -->|Route Frontend| Client[Client / Web App Pod]:::client
         Ingress -->|Route API| GW[API Gateway Pod]:::gw
-        
         Client -->|REST API Requests| GW
         GW <-->|Cache Check / Set| Redis[(Redis Cache Pod)]:::db
         GW -->|Publish Event / Request| Kafka{Apache Kafka Pod}:::broker
@@ -42,6 +42,7 @@ graph TD
 ## 2. Luồng Dữ Liệu Chi Tiết (Data Flow Sequences)
 
 ### A. Luồng Đọc Dữ Liệu (Read Query Flow - Cache-Aside Pattern)
+
 Mô hình này giúp giảm thiểu tối đa các truy vấn trực tiếp vào database bằng cách ưu tiên lấy từ bộ nhớ đệm tốc độ cao.
 
 ```mermaid
@@ -56,7 +57,7 @@ sequenceDiagram
 
     Client->>GW: GET /api/users/:id
     GW->>Redis: Kiểm tra Key 'user:{id}' (Cache Check)
-    
+  
     alt Cache Hit (Có dữ liệu trong Redis)
         Redis-->>GW: Trả về thông tin User
         GW-->>Client: Trả về HTTP 200 OK (Phản hồi < 2ms)
@@ -74,6 +75,7 @@ sequenceDiagram
 ```
 
 ### B. Luồng Ghi Dữ Liệu (Write Transaction Flow - Event-Driven)
+
 Luồng xử lý ghi áp dụng kiến trúc bất đồng bộ (Asynchronous) giúp Client nhận phản hồi ngay lập tức, trong khi hệ thống chạy xử lý ngầm ở phía sau.
 
 ```mermaid
@@ -89,7 +91,7 @@ sequenceDiagram
     Client->>GW: POST /api/users (Create User)
     GW->>Kafka: Emit Event 'user.created' (Topic)
     GW-->>Client: Trả về HTTP 202 Accepted (Xử lý bất đồng bộ thành công)
-    
+  
     Note over Kafka, US: Kafka đẩy Event tới Consumer khả dụng trong Group
     Kafka->>US: Consume Event 'user.created'
     US->>DB: Thực hiện insert vào MongoDB
@@ -102,20 +104,21 @@ sequenceDiagram
 
 ## 3. Thành Phần Hệ Thống & Vai Trò (System Component Directory)
 
-| Thành phần         | Công nghệ sử dụng         | Cấu hình & Vai trò chính                                                                                                                                                    |
-| :-------------------| :--------------------------| :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **API Gateway**    | NestJS REST API           | Điểm truy cập HTTP duy nhất. Xác thực (JWT Auth), kiểm tra/ghi Cache (Redis Store), xuất bản các event lên Kafka. Expose cổng `3000` cho Client kết nối trực tiếp. Không chứa logic nghiệp vụ và không kết nối trực tiếp DB. |
-| **Message Broker** | Apache Kafka (KRaft mode) | Kênh phân phối sự kiện (Event Bus). Lưu trữ bền vững các tin nhắn, đảm bảo hệ thống lỏng lẻo (loose coupling) và có thể mở rộng xử lý song song thông qua Partitioning.     |
-| **Cache Layer**    | Redis                     | Bộ nhớ đệm InMemory lưu trữ thực thể (User, Session). Sử dụng chiến lược Cache-Aside và TTL (Time to Live) để tự động làm mới tài nguyên.                                   |
-| **Microservices**  | NestJS Microservice       | Dịch vụ chuyên biệt (như `users-service`, `orders-service`). Nhận thông điệp từ Kafka, thực hiện xử lý nghiệp vụ nặng, tương tác trực tiếp với Database.                     |
-| **Database (NoSQL)**| MongoDB Atlas             | Hệ quản trị cơ sở dữ liệu phi quan hệ, lưu trữ thực thể động/không cấu trúc (ví dụ: User profile, logs) với hiệu năng ghi cao.                                             |
-| **Database (SQL)**  | Neon Serverless Postgres   | Hệ quản trị cơ sở dữ liệu quan hệ hoàn chỉnh (SQL), lưu trữ các dữ liệu có cấu trúc chặt chẽ, tính giao dịch (ACID) cao (ví dụ: Orders, Billing).                            |
+| Thành phần               | Công nghệ sử dụng     | Cấu hình & Vai trò chính                                                                                                                                                                                                                             |
+| :------------------------- | :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API Gateway**      | NestJS REST API           | Điểm truy cập HTTP duy nhất. Xác thực (JWT Auth), kiểm tra/ghi Cache (Redis Store), xuất bản các event lên Kafka. Expose cổng `3000` cho Client kết nối trực tiếp. Không chứa logic nghiệp vụ và không kết nối trực tiếp DB. |
+| **Message Broker**   | Apache Kafka (KRaft mode) | Kênh phân phối sự kiện (Event Bus). Lưu trữ bền vững các tin nhắn, đảm bảo hệ thống lỏng lẻo (loose coupling) và có thể mở rộng xử lý song song thông qua Partitioning.                                                        |
+| **Cache Layer**      | Redis                     | Bộ nhớ đệm InMemory lưu trữ thực thể (User, Session). Sử dụng chiến lược Cache-Aside và TTL (Time to Live) để tự động làm mới tài nguyên.                                                                                         |
+| **Microservices**    | NestJS Microservice       | Dịch vụ chuyên biệt (như `users-service`, `orders-service`). Nhận thông điệp từ Kafka, thực hiện xử lý nghiệp vụ nặng, tương tác trực tiếp với Database.                                                                      |
+| **Database (NoSQL)** | MongoDB Atlas             | Hệ quản trị cơ sở dữ liệu phi quan hệ, lưu trữ thực thể động/không cấu trúc (ví dụ: User profile, logs) với hiệu năng ghi cao.                                                                                                     |
+| **Database (SQL)**   | Neon Serverless Postgres  | Hệ quản trị cơ sở dữ liệu quan hệ hoàn chỉnh (SQL), lưu trữ các dữ liệu có cấu trúc chặt chẽ, tính giao dịch (ACID) cao (ví dụ: Orders, Billing).                                                                                |
 
 ---
 
 ## 4. Cấu Hình Triển Khai Hệ Thống (Infrastructure Code)
 
 ### A. Docker Compose Môi Trường Cục Bộ (`docker-compose.yml`)
+
 ```yaml
 version: '3.8'
 
@@ -184,6 +187,7 @@ networks:
 Để triển khai lên môi trường Production (như K8s Cluster), các tài nguyên được cấu hình thông qua các Kubernetes Manifests:
 
 #### 1. API Gateway Deployment & Service (`k8s/api-gateway.yaml`)
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -237,6 +241,7 @@ spec:
 ```
 
 #### 2. Users Service Deployment & Service (`k8s/users-service.yaml`)
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -293,7 +298,7 @@ spec:
 ```mermaid
 graph LR
     Developer[Lập trình viên] -->|Git Push Code| GitHub[Kho lưu trữ App Repo]
-    
+  
     subgraph Jenkins CI Pipeline
         GitHub -->|Webhook Trigger| Jenkins[Jenkins Server]
         Jenkins -->|1. Test & Lint| Test[Node.js Unit Test]
@@ -311,6 +316,7 @@ graph LR
 ```
 
 ### Các giai đoạn (Stages) chính của CI/CD:
+
 1. **Kiểm tra mã nguồn (Checkout & Test):** Jenkins tải mã nguồn từ repo về, chạy đồng thời `npm run lint` và `npm test` cho cả `api-gateway` và `users-service`.
 2. **Xây dựng Docker Images (Build Image):** Jenkins đóng gói 2 file Dockerfile tương ứng với 2 dịch vụ, đặt tag ảnh theo định dạng: `<commit-hash>` và `latest`.
 3. **Quét bảo mật (Security Scan):** Sử dụng công cụ **Trivy** để kiểm tra mã độc và các lỗ hổng thư viện trong image vừa build.
