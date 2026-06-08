@@ -5,6 +5,8 @@ import { Model } from 'mongoose';
 import { PurchaseOrder } from './purchase-order.schema';
 import { GoodsReceiptNote } from './goods-receipt-note.schema';
 import { MedicineBatch } from './medicine-batch.schema';
+import { Prescription } from './prescription.schema';
+import { SalesOrder } from './sales-order.schema';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -17,6 +19,8 @@ export class InventoryServiceService {
     @InjectModel('Medicine') private readonly medicineModel: Model<any>,
     @InjectModel(GoodsReceiptNote.name) private readonly grnModel: Model<GoodsReceiptNote>,
     @InjectModel(MedicineBatch.name) private readonly batchModel: Model<MedicineBatch>,
+    @InjectModel(Prescription.name) private readonly prescriptionModel: Model<Prescription>,
+    @InjectModel(SalesOrder.name) private readonly saleModel: Model<SalesOrder>,
   ) {}
 
   async onModuleInit() {
@@ -111,6 +115,7 @@ export class InventoryServiceService {
 
       if (batch) {
         batch.stock += item.quantity;
+        batch.status = batch.expDate < new Date() ? 'EXPIRED' : 'ACTIVE';
         await batch.save();
       } else {
         batch = new this.batchModel({
@@ -118,15 +123,12 @@ export class InventoryServiceService {
           batchNo: item.batchNo,
           expDate: new Date(item.expDate),
           stock: item.quantity,
-          status: 'ACTIVE'
+          status: new Date(item.expDate) < new Date() ? 'EXPIRED' : 'ACTIVE'
         });
         await batch.save();
       }
 
-      // Cộng dồn stock tổng vào Medicine
-      await this.medicineModel.findByIdAndUpdate(item.medicineId, {
-        $inc: { stock: item.quantity }
-      });
+      // KHÔNG CỘNG dồn stock vào bảng Medicine nữa vì tồn kho được tính động từ batches!
     }
 
     // Tạo Phiếu Nhập Kho
@@ -165,5 +167,201 @@ export class InventoryServiceService {
 
   async listGoodsReceiptNotes() {
     return this.grnModel.find().sort({ createdAt: -1 }).exec();
+  }
+
+  // --- HỆ THỐNG ĐƠN THUỐC ĐIỆN TỬ & FIFO SALES ---
+
+  async getPrescriptionByCode(code: string) {
+    this.logger.log(`Fetching prescription by code: ${code}`);
+    const prescription = await this.prescriptionModel.findOne({ prescriptionCode: code }).exec();
+    if (!prescription) {
+      throw new RpcException({ message: 'Không tìm thấy đơn thuốc điện tử' });
+    }
+
+    const itemsWithDetails = [];
+    for (const item of prescription.items) {
+      const medicine = await this.medicineModel.findById(item.medicineId).exec();
+      if (medicine) {
+        // Tính tồn kho khả dụng động
+        const batches = await this.batchModel.find({
+          medicineId: item.medicineId,
+          status: 'ACTIVE',
+          stock: { $gt: 0 }
+        }).exec();
+
+        const totalStock = batches.reduce((sum, b) => sum + b.stock, 0);
+
+        let earliestExpiryStr = '2026-12-31';
+        if (batches.length > 0) {
+          const earliestBatch = batches.reduce((min, b) => new Date(b.expDate) < new Date(min.expDate) ? b : min, batches[0]);
+          earliestExpiryStr = new Date(earliestBatch.expDate).toISOString().split('T')[0];
+        }
+
+        itemsWithDetails.push({
+          medicineId: item.medicineId,
+          name: medicine.name,
+          active_ingredient: medicine.active_ingredient || '',
+          price: medicine.price || 50000,
+          quantity: item.quantity,
+          dosage: item.dosage,
+          unit: medicine.unit || 'Hộp',
+          stock: totalStock,
+          expiry: earliestExpiryStr,
+          status: totalStock > 0 ? 'In Stock' : 'Out of Stock'
+        });
+      } else {
+        itemsWithDetails.push({
+          medicineId: item.medicineId,
+          name: 'Thuốc không xác định',
+          active_ingredient: '',
+          price: 0,
+          quantity: item.quantity,
+          dosage: item.dosage,
+          unit: 'Hộp',
+          stock: 0,
+          expiry: '2026-12-31',
+          status: 'Out of Stock'
+        });
+      }
+    }
+
+    return {
+      id: prescription._id.toString(),
+      prescriptionCode: prescription.prescriptionCode,
+      patientName: prescription.patientName,
+      patientAge: prescription.patientAge,
+      patientGender: prescription.patientGender,
+      patientPhone: prescription.patientPhone,
+      doctorName: prescription.doctorName,
+      doctorSpecialty: prescription.doctorSpecialty,
+      hospitalName: prescription.hospitalName,
+      hospitalCode: prescription.hospitalCode,
+      items: itemsWithDetails,
+      status: prescription.status
+    };
+  }
+
+  async createSalesOrder(data: any) {
+    this.logger.log(`Creating Sales Order. Type: ${data.type}`);
+
+    let prescription = null;
+    if (data.type === 'PRESCRIPTION') {
+      if (!data.prescriptionCode) {
+        throw new RpcException({ message: 'Yêu cầu mã đơn thuốc để bán theo đơn' });
+      }
+      prescription = await this.prescriptionModel.findOne({ prescriptionCode: data.prescriptionCode }).exec();
+      if (!prescription) {
+        throw new RpcException({ message: `Không tìm thấy đơn thuốc: ${data.prescriptionCode}` });
+      }
+      if (prescription.status === 'FILLED') {
+        throw new RpcException({ message: 'Đơn thuốc điện tử này đã được bán hoàn tất trước đó' });
+      }
+    }
+
+    const today = new Date();
+    const orderItems = [];
+    let totalAmount = 0;
+    const allWarnings: string[] = [];
+
+    // Xuất kho FIFO
+    for (const item of data.items) {
+      const medicine = await this.medicineModel.findById(item.medicineId).exec();
+      if (!medicine) {
+        throw new RpcException({ message: `Không tìm thấy thuốc có ID: ${item.medicineId}` });
+      }
+
+      // Truy cập các lô hoạt động sắp xếp tăng dần hạn sử dụng expDate ASC -> FIFO/FEFO
+      const batches = await this.batchModel.find({
+        medicineId: item.medicineId,
+        status: 'ACTIVE',
+        stock: { $gt: 0 }
+      }).sort({ expDate: 1 }).exec();
+
+      const totalAvailable = batches.reduce((sum, b) => sum + b.stock, 0);
+      if (totalAvailable < item.quantity) {
+        throw new RpcException({
+          message: `Thuốc "${medicine.name}" không đủ tồn kho khả dụng (Yêu cầu: ${item.quantity}, Khả dụng: ${totalAvailable})`
+        });
+      }
+
+      let remainingQty = item.quantity;
+      const allocatedBatches = [];
+
+      for (const batch of batches) {
+        if (remainingQty <= 0) break;
+
+        // Nếu lô hàng đã quá ngày hết hạn
+        if (batch.expDate < today) {
+          batch.status = 'EXPIRED';
+          await batch.save();
+          continue;
+        }
+
+        // Kiểm tra cảnh báo cận HSD (dưới 6 tháng = 180 ngày)
+        const diffTime = batch.expDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays <= 180) {
+          allWarnings.push(
+            `Lô "${batch.batchNo}" của thuốc "${medicine.name}" sắp hết hạn (HSD: ${batch.expDate.toLocaleDateString()} - Còn ${diffDays} ngày)`
+          );
+        }
+
+        const deductQty = Math.min(batch.stock, remainingQty);
+        batch.stock -= deductQty;
+        remainingQty -= deductQty;
+
+        allocatedBatches.push({ batchNo: batch.batchNo, quantity: deductQty });
+        await batch.save();
+      }
+
+      if (remainingQty > 0) {
+        throw new RpcException({
+          message: `Không đủ lô hàng khả dụng còn hạn cho thuốc "${medicine.name}"`
+        });
+      }
+
+      const itemPrice = medicine.price || 50000;
+      totalAmount += itemPrice * item.quantity;
+
+      orderItems.push({
+        medicineId: item.medicineId,
+        name: medicine.name,
+        quantity: item.quantity,
+        price: itemPrice,
+        unit: medicine.unit || 'Hộp',
+        batches: allocatedBatches
+      });
+    }
+
+    // Tạo hóa đơn bán hàng
+    const salesOrder = new this.saleModel({
+      prescriptionId: prescription ? prescription._id.toString() : undefined,
+      prescriptionCode: data.prescriptionCode,
+      items: orderItems,
+      totalAmount: totalAmount,
+      paymentMethod: data.paymentMethod || 'CASH',
+      type: data.type,
+      patientName: data.patientName || (prescription ? prescription.patientName : undefined),
+      patientPhone: data.patientPhone || (prescription ? prescription.patientPhone : undefined),
+      soldBy: data.soldBy || 'Dược sĩ'
+    });
+    await salesOrder.save();
+
+    // Cập nhật trạng thái đơn thuốc
+    if (prescription) {
+      prescription.status = 'FILLED';
+      await prescription.save();
+    }
+
+    return {
+      success: true,
+      message: 'Thanh toán & trừ kho thành công!',
+      warnings: allWarnings,
+      data: salesOrder
+    };
+  }
+
+  async listSalesOrders() {
+    return this.saleModel.find().sort({ createdAt: -1 }).exec();
   }
 }

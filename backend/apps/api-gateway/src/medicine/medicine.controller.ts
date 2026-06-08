@@ -2,13 +2,17 @@ import { Controller, Get, Query, HttpException, HttpStatus, UseInterceptors, Par
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Medicine } from './medicine.schema';
+import { MedicineBatch } from '../../../inventory-service/src/medicine-batch.schema';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 
 @ApiTags('💊 Medicines')
 @Controller('api/medicines')
 export class MedicineController {
-  constructor(@InjectModel(Medicine.name) private readonly medicineModel: Model<Medicine>) {}
+  constructor(
+    @InjectModel(Medicine.name) private readonly medicineModel: Model<Medicine>,
+    @InjectModel(MedicineBatch.name) private readonly batchModel: Model<MedicineBatch>,
+  ) {}
 
   @Get('filters')
   @ApiOperation({ summary: 'Lấy danh sách các bộ lọc có sẵn' })
@@ -33,7 +37,27 @@ export class MedicineController {
       if (!medicine) {
         throw new HttpException('Medicine not found', HttpStatus.NOT_FOUND);
       }
-      return medicine;
+
+      // Lấy danh sách lô hàng khả dụng
+      const batches = await this.batchModel.find({ medicineId: id, status: 'ACTIVE', stock: { $gt: 0 } }).exec();
+      const totalStock = batches.reduce((sum, b) => sum + b.stock, 0);
+
+      // Tìm hạn dùng gần nhất
+      let earliestExpiryStr = '2026-12-31';
+      if (batches.length > 0) {
+        const earliestBatch = batches.reduce((min, b) => new Date(b.expDate) < new Date(min.expDate) ? b : min, batches[0]);
+        earliestExpiryStr = new Date(earliestBatch.expDate).toISOString().split('T')[0];
+      }
+
+      const medObj = medicine.toObject();
+      return {
+        ...medObj,
+        id: medObj._id.toString(),
+        stock: totalStock,
+        expiry: earliestExpiryStr,
+        status: totalStock > 0 ? 'In Stock' : 'Out of Stock',
+        minStock: 50
+      };
     } catch (error) {
       throw new HttpException(error.message || 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -47,19 +71,56 @@ export class MedicineController {
     @Body('stock') stock?: number
   ) {
     try {
-      const updateData: any = { status };
-      if (stock !== undefined) updateData.stock = stock;
+      const medicine = await this.medicineModel.findById(id).exec();
+      if (!medicine) {
+        throw new HttpException('Medicine not found', HttpStatus.NOT_FOUND);
+      }
 
-      const medicine = await this.medicineModel.findByIdAndUpdate(
+      const updateData: any = { status };
+      const updatedMedicine = await this.medicineModel.findByIdAndUpdate(
         id,
         { $set: updateData },
         { new: true }
       ).exec();
 
-      if (!medicine) {
-        throw new HttpException('Medicine not found', HttpStatus.NOT_FOUND);
+      // Cập nhật tồn kho ở lô INIT-BATCH nếu có tham số stock
+      if (stock !== undefined) {
+        let initBatch = await this.batchModel.findOne({ medicineId: id, batchNo: 'INIT-BATCH' }).exec();
+        if (initBatch) {
+          initBatch.stock = stock;
+          initBatch.status = initBatch.expDate < new Date() ? 'EXPIRED' : 'ACTIVE';
+          await initBatch.save();
+        } else {
+          initBatch = new this.batchModel({
+            medicineId: id,
+            batchNo: 'INIT-BATCH',
+            expDate: new Date('2026-12-31'),
+            stock: stock,
+            status: 'ACTIVE'
+          });
+          await initBatch.save();
+        }
       }
-      return medicine;
+
+      // Lấy tồn kho cập nhật mới
+      const batches = await this.batchModel.find({ medicineId: id, status: 'ACTIVE', stock: { $gt: 0 } }).exec();
+      const totalStock = batches.reduce((sum, b) => sum + b.stock, 0);
+
+      let earliestExpiryStr = '2026-12-31';
+      if (batches.length > 0) {
+        const earliestBatch = batches.reduce((min, b) => new Date(b.expDate) < new Date(min.expDate) ? b : min, batches[0]);
+        earliestExpiryStr = new Date(earliestBatch.expDate).toISOString().split('T')[0];
+      }
+
+      const medObj = updatedMedicine.toObject();
+      return {
+        ...medObj,
+        id: medObj._id.toString(),
+        stock: totalStock,
+        expiry: earliestExpiryStr,
+        status: totalStock > 0 ? 'In Stock' : 'Out of Stock',
+        minStock: 50
+      };
     } catch (error) {
       throw new HttpException(error.message || 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -97,7 +158,55 @@ export class MedicineController {
             HttpStatus.BAD_GATEWAY,
           );
         }
-        return await response.json();
+        
+        const resJson = await response.json();
+        const aiData = resJson.data || [];
+        const aiTotal = resJson.total || aiData.length;
+
+        // Truy vấn lô hàng cho các kết quả từ AI Service
+        const aiMedIds = aiData.map((med: any) => (med._id || med.id).toString());
+        const aiBatches = await this.batchModel.find({ medicineId: { $in: aiMedIds } }).exec();
+        const aiBatchesByMedId = new Map<string, MedicineBatch[]>();
+        for (const batch of aiBatches) {
+          const list = aiBatchesByMedId.get(batch.medicineId) || [];
+          list.push(batch);
+          aiBatchesByMedId.set(batch.medicineId, list);
+        }
+
+        const mappedAiData = aiData.map((med: any) => {
+          const medId = (med._id || med.id).toString();
+          const medBatches = aiBatchesByMedId.get(medId) || [];
+          const activeBatches = medBatches.filter(b => b.status === 'ACTIVE' && b.stock > 0);
+          const totalStock = activeBatches.reduce((sum, b) => sum + b.stock, 0);
+
+          let earliestExpiryStr = '2026-12-31';
+          if (activeBatches.length > 0) {
+            const earliestBatch = activeBatches.reduce((min, b) => new Date(b.expDate) < new Date(min.expDate) ? b : min, activeBatches[0]);
+            earliestExpiryStr = new Date(earliestBatch.expDate).toISOString().split('T')[0];
+          }
+
+          return {
+            id: medId,
+            name: med.name,
+            category: med.category || 'Chưa phân loại',
+            drug_classification: med.drug_classification || 'COMMON_SUPPLEMENT',
+            price: med.price || 50000,
+            stock: totalStock,
+            minStock: 50,
+            status: totalStock > 0 ? 'In Stock' : 'Out of Stock',
+            expiry: earliestExpiryStr,
+            unit: med.unit || 'Hộp',
+            image: med.image,
+            active_ingredient: med.active_ingredient || '',
+          };
+        });
+
+        return {
+          data: mappedAiData,
+          total: aiTotal,
+          page: Number(page),
+          limit: Number(limit),
+        };
       } else {
         // MONGOOSE SCROLL (Default View)
         const filterQuery: any = {};
@@ -109,21 +218,42 @@ export class MedicineController {
           this.medicineModel.countDocuments(filterQuery).exec(),
         ]);
 
+        // Truy vấn lô hàng cho toàn bộ danh sách kết quả hiển thị
+        const medIds = data.map(med => med._id.toString());
+        const allBatches = await this.batchModel.find({ medicineId: { $in: medIds } }).exec();
+        
+        const batchesByMedId = new Map<string, MedicineBatch[]>();
+        for (const batch of allBatches) {
+          const list = batchesByMedId.get(batch.medicineId) || [];
+          list.push(batch);
+          batchesByMedId.set(batch.medicineId, list);
+        }
+
         const mappedData = data.map((med) => {
-          const price = med.thong_tin_chi_tiet?.['Giá bán'] || med.thong_tin_chi_tiet?.price || Math.floor(Math.random() * (450 - 15 + 1) + 15) * 1000;
+          const medId = med._id.toString();
+          const medBatches = batchesByMedId.get(medId) || [];
+          const activeBatches = medBatches.filter(b => b.status === 'ACTIVE' && b.stock > 0);
+          const totalStock = activeBatches.reduce((sum, b) => sum + b.stock, 0);
+
+          let earliestExpiryStr = '2026-12-31';
+          if (activeBatches.length > 0) {
+            const earliestBatch = activeBatches.reduce((min, b) => new Date(b.expDate) < new Date(min.expDate) ? b : min, activeBatches[0]);
+            earliestExpiryStr = new Date(earliestBatch.expDate).toISOString().split('T')[0];
+          }
+
           return {
-            id: med._id.toString(),
+            id: medId,
             name: med.name,
-            category: med.category || med.thong_tin_chi_tiet?.['Danh mục'] || 'Chưa phân loại',
-            drug_classification: med.get('drug_classification') || 'COMMON_SUPPLEMENT',
-            price,
-            stock: med.stock || 0,
+            category: med.category || 'Chưa phân loại',
+            drug_classification: med.drug_classification || 'COMMON_SUPPLEMENT',
+            price: med.price || 50000,
+            stock: totalStock,
             minStock: 50,
-            status: med.status || 'Out of Stock',
-            expiry: med.expiry_date || '2026-12-31',
+            status: totalStock > 0 ? 'In Stock' : 'Out of Stock',
+            expiry: earliestExpiryStr,
             unit: med.unit || 'Hộp',
             image: med.image,
-            active_ingredient: med.thong_tin_chi_tiet?.['Thành phần'] || '',
+            active_ingredient: med.active_ingredient || '',
           };
         });
 

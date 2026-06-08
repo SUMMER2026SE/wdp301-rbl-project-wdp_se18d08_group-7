@@ -10,6 +10,9 @@ import { MedicineSchema } from '../../api-gateway/src/medicine/medicine.schema';
 import { GoodsReceiptNote, GoodsReceiptNoteSchema } from './goods-receipt-note.schema';
 import { MedicineBatch, MedicineBatchSchema } from './medicine-batch.schema';
 
+import { Prescription, PrescriptionSchema } from './prescription.schema';
+import { SalesOrder, SalesOrderSchema } from './sales-order.schema';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -25,6 +28,8 @@ import { MedicineBatch, MedicineBatchSchema } from './medicine-batch.schema';
       { name: 'Medicine', schema: MedicineSchema },
       { name: GoodsReceiptNote.name, schema: GoodsReceiptNoteSchema },
       { name: MedicineBatch.name, schema: MedicineBatchSchema },
+      { name: Prescription.name, schema: PrescriptionSchema },
+      { name: SalesOrder.name, schema: SalesOrderSchema },
     ]),
     ClientsModule.register([
       {

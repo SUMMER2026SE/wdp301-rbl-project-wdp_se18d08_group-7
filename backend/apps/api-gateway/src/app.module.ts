@@ -11,6 +11,9 @@ import { PurchaseOrderController } from './purchase-order.controller';
 import { GoodsReceiptController } from './goods-receipt.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 
+import { PrescriptionController } from './prescription.controller';
+import { SalesController } from './sales.controller';
+
 /**
  * Root Module của API Gateway
  * Chỉ chứa các module để routing và caching — không kết nối trực tiếp Database
@@ -77,6 +80,6 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     UserModule,
     MedicineModule,
   ],
-  controllers: [SupplierController, PurchaseOrderController, GoodsReceiptController],
+  controllers: [SupplierController, PurchaseOrderController, GoodsReceiptController, PrescriptionController, SalesController],
 })
 export class AppGatewayModule {}

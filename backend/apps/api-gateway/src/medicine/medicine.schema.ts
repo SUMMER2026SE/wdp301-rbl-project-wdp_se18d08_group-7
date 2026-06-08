@@ -27,14 +27,29 @@ export class Medicine extends Document {
   @Prop({ type: Object })
   thong_tin_chi_tiet: any;
 
+  @Prop({ default: 0 })
+  price: number;
+
+  @Prop({ default: 'COMMON_SUPPLEMENT' })
+  drug_classification: string;
+
   @Prop()
-  stock: number;
+  active_ingredient: string;
+
+  @Prop()
+  registration_number: string;
+
+  @Prop()
+  manufacturer: string;
+
+  @Prop()
+  dosage_form: string;
+
+  @Prop()
+  supplierId: string;
 
   @Prop()
   status: string;
-
-  @Prop()
-  expiry_date: string;
 
   @Prop()
   unit: string;

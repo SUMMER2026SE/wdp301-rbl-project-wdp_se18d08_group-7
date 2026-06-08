@@ -56,4 +56,33 @@ export class InventoryServiceController {
       throw new RpcException(error.message || 'Lỗi hệ thống khi lấy danh sách phiếu nhập kho');
     }
   }
+
+  @MessagePattern('inventory.prescription.get')
+  async getPrescriptionByCode(@Payload() data: { code: string }) {
+    try {
+      return await this.inventoryServiceService.getPrescriptionByCode(data.code);
+    } catch (error) {
+      if (error instanceof RpcException) throw error;
+      throw new RpcException(error.message || 'Lỗi hệ thống khi lấy thông tin đơn thuốc');
+    }
+  }
+
+  @MessagePattern('inventory.sale.create')
+  async createSalesOrder(@Payload() data: any) {
+    try {
+      return await this.inventoryServiceService.createSalesOrder(data);
+    } catch (error) {
+      if (error instanceof RpcException) throw error;
+      throw new RpcException(error.message || 'Lỗi hệ thống khi tạo đơn bán hàng');
+    }
+  }
+
+  @MessagePattern('inventory.sale.list')
+  async listSalesOrders() {
+    try {
+      return await this.inventoryServiceService.listSalesOrders();
+    } catch (error) {
+      throw new RpcException(error.message || 'Lỗi hệ thống khi lấy danh sách đơn bán hàng');
+    }
+  }
 }

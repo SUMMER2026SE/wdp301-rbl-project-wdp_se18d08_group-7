@@ -1,0 +1,21 @@
+import { Controller, Get, Param, Inject, OnModuleInit } from '@nestjs/common';
+import { ClientKafka } from '@nestjs/microservices';
+import { sendKafkaMessage, subscribeToKafkaTopics } from './common/kafka.helper';
+
+@Controller('api/prescriptions')
+export class PrescriptionController implements OnModuleInit {
+  constructor(
+    @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientKafka,
+  ) {}
+
+  async onModuleInit() {
+    await subscribeToKafkaTopics(this.inventoryClient, [
+      'inventory.prescription.get',
+    ]);
+  }
+
+  @Get(':code')
+  async getPrescriptionByCode(@Param('code') code: string) {
+    return await sendKafkaMessage(this.inventoryClient, 'inventory.prescription.get', { code });
+  }
+}
