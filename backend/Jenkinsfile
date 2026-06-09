@@ -73,7 +73,7 @@ pipeline {
                     steps {
                         sh """
                             docker build \
-                              -f docker/frontend.Dockerfile \
+                              -f backend/docker/frontend.Dockerfile \
                               -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
                               -t ${FRONTEND_IMAGE}:latest \
                               .
@@ -84,7 +84,7 @@ pipeline {
                     steps {
                         sh """
                             docker build \
-                              -f docker/backend.Dockerfile \
+                              -f backend/docker/backend.Dockerfile \
                               -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
                               -t ${BACKEND_IMAGE}:latest \
                               .
@@ -128,25 +128,29 @@ pipeline {
         // ─────────────────────────────────────────
         stage('Update GitOps Repo') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: "${GIT_CREDENTIALS}",
-                    usernameVariable: 'GIT_USER',
-                    passwordVariable: 'GIT_TOKEN'
-                )]) {
-                    sh """
-                        rm -rf ${GITOPS_REPO_NAME}
-                        git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/YOUR_ORG/gitops-repo.git ${GITOPS_REPO_NAME}
-                        cd ${GITOPS_REPO_NAME}
+                script {
+                    def targetBranch = env.BRANCH_NAME ?: 'main'
+                    withCredentials([usernamePassword(
+                        credentialsId: "${GIT_CREDENTIALS}",
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_TOKEN'
+                    )]) {
+                        sh """
+                            # Configure Git identity
+                            git config user.email "jenkins@ci.local"
+                            git config user.name "Jenkins CI"
 
-                        # Update image tags using sed
-                        sed -i "s|tag: .*|tag: \\"${IMAGE_TAG}\\"|g" overlays/${DEPLOY_ENV}/values-override.yaml
+                            # Update image tags in gitops overlays directory
+                            sed -i 's|tag: .*|tag: "${IMAGE_TAG}"|g' gitops/overlays/${DEPLOY_ENV}/values-override.yaml
 
-                        git config user.email "jenkins@ci.local"
-                        git config user.name "Jenkins CI"
-                        git add -A
-                        git diff --cached --quiet || git commit -m "ci: update image tag to ${IMAGE_TAG} [${DEPLOY_ENV}]"
-                        git push origin HEAD
-                    """
+                            # Set authenticated remote URL
+                            git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/SUMMER2026SE/wdp301-rbl-project-wdp_se18d08_group-7.git
+
+                            # Add, commit and push back with [skip ci]
+                            git add gitops/overlays/${DEPLOY_ENV}/values-override.yaml
+                            git diff --cached --quiet || (git commit -m "ci: update image tag to ${IMAGE_TAG} [${DEPLOY_ENV}] [skip ci]" && git push origin HEAD:${targetBranch})
+                        """
+                    }
                 }
             }
         }

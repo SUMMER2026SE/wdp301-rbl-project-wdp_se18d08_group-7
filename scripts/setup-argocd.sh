@@ -10,7 +10,7 @@ kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 
 # 2. Install ArgoCD
 echo "📦 Installing ArgoCD components..."
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # 3. Expose ArgoCD Server permanently via NodePort on port 30080
 echo "🌐 Exposing ArgoCD Server on NodePort 30080..."

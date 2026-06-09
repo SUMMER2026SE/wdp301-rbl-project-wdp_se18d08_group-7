@@ -1,56 +1,95 @@
-# Production environment overrides
+# Prod environment overrides
 global:
   environment: prod
-  domain: wdp301.yourdomain.com
+  domain: wdp301.local
 
 frontend:
-  replicaCount: 2
-  image:
-    repository: YOUR_DOCKERHUB_USERNAME/wdp301-frontend
-    tag: "latest"   # Jenkins will replace this with actual SHA tag
+  replicaCount: 1
   resources:
     requests:
-      cpu: "200m"
-      memory: "256Mi"
+      cpu: "10m"
+      memory: "32Mi"
     limits:
-      cpu: "500m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "128Mi"
 
-backend:
-  replicaCount: 2
-  image:
-    repository: YOUR_DOCKERHUB_USERNAME/wdp301-backend
-    tag: "latest"   # Jenkins will replace this with actual SHA tag
+gateway:
+  replicaCount: 1
   env:
     NODE_ENV: "production"
-    PORT: "4000"
     MONGODB_URI: "mongodb://mongodb-svc:27017/wdp301-prod"
-    APP_VERSION: "1.0.0"
   resources:
     requests:
-      cpu: "200m"
-      memory: "256Mi"
+      cpu: "10m"
+      memory: "32Mi"
     limits:
-      cpu: "500m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "128Mi"
+
+auth:
+  replicaCount: 1
+  env:
+    NODE_ENV: "production"
+    MONGODB_URI: "mongodb://mongodb-svc:27017/wdp301-prod"
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+user:
+  replicaCount: 1
+  env:
+    NODE_ENV: "production"
+    MONGODB_URI: "mongodb://mongodb-svc:27017/wdp301-prod"
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+inventory:
+  replicaCount: 1
+  env:
+    NODE_ENV: "production"
+    MONGODB_URI: "mongodb://mongodb-svc:27017/wdp301-prod"
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+supplier:
+  replicaCount: 1
+  env:
+    NODE_ENV: "production"
+    MONGODB_URI: "mongodb://mongodb-svc:27017/wdp301-prod"
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
 
 mongodb:
-  storage:
-    size: 10Gi
   resources:
     requests:
+      cpu: "10m"
+      memory: "64Mi"
+    limits:
       cpu: "200m"
       memory: "256Mi"
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
 
 ingress:
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
-    - host: wdp301.yourdomain.com
+    - host: wdp301.local
       paths:
         - path: /api
           pathType: Prefix
@@ -64,7 +103,3 @@ ingress:
           pathType: Prefix
           serviceName: frontend-svc
           servicePort: 3000
-  tls:
-    - secretName: wdp301-tls
-      hosts:
-        - wdp301.yourdomain.com

@@ -53,14 +53,14 @@ minikube start
 kubectl create ns kafka
 kubectl apply -f gitops/base/kafka.yaml
 
-helm install wdp301-app ./gitops/charts/app -n wdp301 --create-namespace
+helm upgrade --install wdp301-prod ./gitops/charts/app -f ./gitops/overlays/prod/values-override.yaml -n wdp301-prod --create-namespace
 ```
 
 **Bước 3: Mở Port-forward để sử dụng**
 Sau khi Pod đã Running, mở 2 tab Terminal:
 ```bash
-kubectl port-forward svc/frontend-svc -n wdp301 3000:3000
-kubectl port-forward svc/backend-svc -n wdp301 4000:4000
+kubectl port-forward svc/frontend-svc -n wdp301-prod 3000:3000
+kubectl port-forward svc/backend-svc -n wdp301-prod 4000:4000
 ```
 Bây giờ bạn có thể truy cập `http://localhost:3000` (Frontend) trên trình duyệt.
 

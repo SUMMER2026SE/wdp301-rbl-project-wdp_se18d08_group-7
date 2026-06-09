@@ -23,6 +23,7 @@ spec:
         - name: backend-inventory
           image: "{{ .Values.inventory.image.repository }}:{{ .Values.inventory.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["npm", "run", "start:inventory"]
           envFrom:
             - secretRef:
                 name: backend-secret

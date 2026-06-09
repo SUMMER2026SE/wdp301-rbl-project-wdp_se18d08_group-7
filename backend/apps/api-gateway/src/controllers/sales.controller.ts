@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Inject, OnModuleInit } from '@nestjs/common';
 import { ClientKafka } from '@nestjs/microservices';
-import { sendKafkaMessage, subscribeToKafkaTopics } from './common/kafka.helper';
+import { sendKafkaMessage, subscribeToKafkaTopics } from '../common/kafka.helper';
 
 @Controller('api/sales')
 export class SalesController implements OnModuleInit {

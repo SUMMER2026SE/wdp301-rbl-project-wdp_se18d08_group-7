@@ -6,7 +6,7 @@ services:
     container_name: wdp301-redis
     ports:
       - "6379:6379"
-    command: redis-server --save 60 1 --loglevel warning
+    command: redis-server --save 60 1 --loglevel error
     networks:
       - wdp301-network
 
@@ -28,7 +28,8 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
-      KAFKA_LOG4J_LOGGERS: 'org.apache.kafka.image.loader.MetadataLoader=WARN'
+      KAFKA_LOG4J_ROOT_LOGLEVEL: 'ERROR'
+      KAFKA_LOG4J_LOGGERS: 'org.apache.kafka.image.loader.MetadataLoader=ERROR,org.apache.kafka=ERROR,kafka=ERROR,state.change.logger=ERROR,kafka.log.LogCleaner=ERROR'
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
@@ -54,7 +55,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:29092
       - TS_NODE_TRANSPILE_ONLY=true
-    command: sh -c "npm install && npm run dev:all"
+    command: sh -c "npm install --no-audit --no-fund --quiet && npm run dev:all"
     depends_on:
       kafka:
         condition: service_healthy
@@ -72,7 +73,7 @@ services:
       - /app/node_modules
     ports:
       - "3000:3000"
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install --no-audit --no-fund --quiet && npm run dev"
     depends_on:
       - backend
     networks:
@@ -99,6 +100,8 @@ services:
     container_name: wdp301-qdrant
     ports:
       - "6333:6333"
+    environment:
+      - RUST_LOG=error
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
