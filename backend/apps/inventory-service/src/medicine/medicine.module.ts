@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CacheModule } from '@nestjs/cache-manager';
-import { Medicine, MedicineSchema } from './medicine.schema';
 import { MedicineController } from './medicine.controller';
-import { MedicineBatch, MedicineBatchSchema } from '../../../inventory-service/src/medicine-batch.schema';
+import { MedicineService } from './medicine.service';
+import { Medicine, MedicineSchema } from './schemas/medicine.schema';
+import { MedicineBatch, MedicineBatchSchema } from './schemas/medicine-batch.schema';
 
 @Module({
   imports: [
@@ -11,8 +11,9 @@ import { MedicineBatch, MedicineBatchSchema } from '../../../inventory-service/s
       { name: Medicine.name, schema: MedicineSchema },
       { name: MedicineBatch.name, schema: MedicineBatchSchema },
     ]),
-    CacheModule.register({ ttl: 60000, max: 100 }), // 60s cache
   ],
   controllers: [MedicineController],
+  providers: [MedicineService],
+  exports: [MongooseModule], // Export MongooseModule so other modules can use Medicine/MedicineBatch models
 })
 export class MedicineModule {}

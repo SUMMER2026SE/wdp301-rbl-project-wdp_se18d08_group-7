@@ -7,6 +7,7 @@ async function bootstrap() {
   let retries = 10;
   while (retries > 0) {
     try {
+      console.log('🔄 Đang kết nối tới Kafka...');
       const app = await NestFactory.createMicroservice<MicroserviceOptions>(
         UserServiceModule,
         {
@@ -17,21 +18,24 @@ async function bootstrap() {
               brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
               connectionTimeout: 10000,
               retry: { initialRetryTime: 1000, retries: 10 },
-              logLevel: 1,
+              logLevel: 0,
             },
             consumer: {
               groupId: (process.env.KAFKA_GROUP_ID || 'wdp301-consumers') + '-user',
             },
+            subscribe: {
+              allowAutoTopicCreation: true,
+            },
           },
-          logger: ['error', 'warn', 'log'],
+          logger: ['error', 'warn'],
         },
       );
 
       await app.listen();
-      console.log('🚀 User Microservice đang lắng nghe Kafka trên localhost:9092');
+      console.log('🚀 User Microservice khởi động thành công!');
       break;
     } catch (error) {
-      console.error(`❌ Lỗi khởi động User Service. Thử lại sau 5s... (${retries} lần thử còn lại)`);
+      console.log('🔄 Kafka chưa sẵn sàng, đang thử lại sau 5s...');
       retries--;
       if (retries === 0) throw error;
       await new Promise((resolve) => setTimeout(resolve, 5000));

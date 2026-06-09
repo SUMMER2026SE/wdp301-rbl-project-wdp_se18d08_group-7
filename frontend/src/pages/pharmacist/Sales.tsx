@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { 
-  Search, AlertTriangle, ShieldAlert, Sparkles, Printer, XCircle, FileText, 
-  CheckCircle2, ChevronRight, Stethoscope, Building, UserSquare2, CreditCard, 
-  Banknote, QrCode, PlusCircle, Save, FileCheck, Info, Check, SearchIcon, 
-  ArrowLeft, RefreshCw, ShoppingCart, Plus, Minus, Tag, Phone 
+import {
+  Search, AlertTriangle, ShieldAlert, Sparkles, Printer, XCircle, FileText,
+  CheckCircle2, ChevronRight, Stethoscope, Building, UserSquare2, CreditCard,
+  Banknote, QrCode, PlusCircle, Save, FileCheck, Info, Check, SearchIcon,
+  ArrowLeft, RefreshCw, ShoppingCart, Plus, Minus, Tag, Phone
 } from "lucide-react";
 
 export function Sales() {
   const [activeTab, setActiveTab] = useState("KÊ ĐƠN / PRESCRIPTION");
-  
+
   const tabs = [
     "BÁN LẺ / RETAIL",
     "KÊ ĐƠN / PRESCRIPTION",
@@ -25,11 +25,10 @@ export function Sales() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-4 text-[13px] font-bold tracking-wider border-b-2 transition-colors uppercase ${
-                activeTab === tab
+              className={`pb-4 text-[13px] font-bold tracking-wider border-b-2 transition-colors uppercase ${activeTab === tab
                   ? "border-[#0057cd] text-[#0057cd]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               {tab}
             </button>
@@ -64,7 +63,6 @@ function PrescriptionView() {
   const [prescriptionCode, setPrescriptionCode] = useState("RX-99281-HAN");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
   // Patient & Doctor state (For manual entry & e-Rx)
   const [patientName, setPatientName] = useState("");
   const [patientAge, setPatientAge] = useState("");
@@ -85,6 +83,7 @@ function PrescriptionView() {
 
   // DB Prescriptions for selection
   const [dbPrescriptions, setDbPrescriptions] = useState<any[]>([]);
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Checkout States
   const [paymentMethod, setPaymentMethod] = useState("CASH");
@@ -322,86 +321,37 @@ function PrescriptionView() {
       {/* Cột trái: Chi tiết đơn & Giỏ hàng */}
       <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-6 pb-6">
         
-        {/* Toggle Mode: Nhập tay hay Quét QR */}
-        <div className="bg-white p-3 rounded-2xl border border-slate-200 flex gap-2 shadow-sm shrink-0">
-          <button
-            onClick={() => setPrescriptionMode("QR")}
-            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all uppercase flex items-center justify-center gap-2 ${
-              prescriptionMode === "QR"
-                ? "bg-[#0057cd] text-white shadow-md"
-                : "bg-transparent text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <QrCode size={18} /> Bán qua đơn điện tử (Quét QR)
-          </button>
-          <button
-            onClick={() => setPrescriptionMode("MANUAL")}
-            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all uppercase flex items-center justify-center gap-2 ${
-              prescriptionMode === "MANUAL"
-                ? "bg-[#0057cd] text-white shadow-md"
-                : "bg-transparent text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <FileText size={18} /> Nhập đơn tay (Đơn giấy thuốc kê toa)
-          </button>
-        </div>
-
-        {/* Cột điều khiển Đơn điện tử QR */}
-        {prescriptionMode === "QR" && (
-          <div className="bg-white rounded-[16px] border border-slate-200 p-5 shadow-sm flex flex-col lg:flex-row items-end gap-4 shrink-0">
-            <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Chọn đơn từ database (Thử nghiệm)</label>
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      fetchPrescription(e.target.value);
-                    }
-                  }}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[12px] text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0057cd] transition-all"
-                >
-                  <option value="">-- Click chọn đơn từ database --</option>
-                  {dbPrescriptions.map((p) => (
-                    <option key={p.id} value={p.prescriptionCode}>
-                      {p.prescriptionCode} - {p.patientName} ({p.status === "FILLED" ? "Đã bán" : "Chờ bán"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Nhập mã đơn thuốc điện tử</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                    <FileText size={18} />
-                  </div>
-                  <input 
-                    type="text" 
-                    placeholder="Mã đơn (Ví dụ: RX-99281-HAN)..."
-                    value={prescriptionCode}
-                    onChange={(e) => setPrescriptionCode(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && fetchPrescription(prescriptionCode)}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-[12px] text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0057cd] transition-all" 
-                  />
-                </div>
-              </div>
+        {/* Thanh tìm kiếm đơn thuốc & Quét QR */}
+        <div className="bg-white rounded-[16px] border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row items-center gap-4 shrink-0">
+          <div className="flex-1 relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+              <FileText size={18} />
             </div>
-            <div className="flex gap-3 w-full lg:w-auto shrink-0">
-              <button 
-                onClick={() => fetchPrescription(prescriptionCode)}
-                disabled={loading}
-                className="flex-1 lg:flex-none px-6 py-3 bg-[#0057cd] hover:bg-[#00419e] text-white font-bold rounded-[12px] shadow-sm transition-colors"
-              >
-                {loading ? "Đang tải..." : "Tra cứu"}
-              </button>
-              <button 
-                onClick={() => setShowQRModal(true)}
-                className="flex-1 lg:flex-none px-5 py-3 border-2 border-[#b1c5ff] text-[#0057cd] font-bold rounded-[12px] hover:bg-[#f2f3ff] transition-all flex items-center justify-center gap-2"
-              >
-                <QrCode size={18} /> Quét mã QR
-              </button>
-            </div>
+            <input
+              type="text"
+              placeholder="Nhập mã đơn thuốc điện tử (Ví dụ: RX-99281-HAN)..."
+              value={prescriptionCode}
+              onChange={(e) => setPrescriptionCode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && fetchPrescription(prescriptionCode)}
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-[12px] text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0057cd] transition-all"
+            />
           </div>
-        )}
+          <div className="flex gap-3 w-full md:w-auto shrink-0">
+            <button
+              onClick={() => fetchPrescription(prescriptionCode)}
+              disabled={loading}
+              className="flex-1 md:flex-none px-6 py-3 bg-[#0057cd] hover:bg-[#00419e] text-white font-bold rounded-[12px] shadow-sm transition-colors"
+            >
+              {loading ? "Đang tải..." : "Tra cứu"}
+            </button>
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="flex-1 md:flex-none px-5 py-3 border-2 border-[#b1c5ff] text-[#0057cd] font-bold rounded-[12px] hover:bg-[#f2f3ff] transition-all flex items-center justify-center gap-2"
+            >
+              <QrCode size={18} /> Quét mã QR
+            </button>
+          </div>
+        </div>
 
         {/* Thông tin Đơn thuốc & Người kê toa (Luôn hiển thị và có thể chỉnh sửa) */}
         <div className="bg-white rounded-[16px] border border-slate-200 p-6 shadow-sm flex flex-col gap-5 shrink-0">
@@ -576,7 +526,7 @@ function PrescriptionView() {
                   </span>
                 )}
               </div>
-              
+
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-sm text-left">
                   <thead className="text-[10px] text-slate-500 font-bold uppercase tracking-wider bg-slate-50 border-b border-slate-100">
@@ -594,18 +544,17 @@ function PrescriptionView() {
                   <tbody className="divide-y divide-slate-100">
                     {prescriptionItems.map((it: any) => {
                       const isOutOfStock = it.stock < it.quantity;
-                      
+
                       // Kiểm tra xem HSD của lô xuất kho sắp tới có cận hạn hay không (< 180 ngày)
                       const diffTime = new Date(it.expiry).getTime() - new Date().getTime();
                       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                       const isNearExp = diffDays > 0 && diffDays <= 180;
 
                       return (
-                        <tr 
-                          key={it.medicineId} 
-                          className={`hover:bg-slate-50/50 transition-colors ${
-                            isOutOfStock ? "bg-red-50/30" : isNearExp ? "bg-amber-50/30" : ""
-                          }`}
+                        <tr
+                          key={it.medicineId}
+                          className={`hover:bg-slate-50/50 transition-colors ${isOutOfStock ? "bg-red-50/30" : isNearExp ? "bg-amber-50/30" : ""
+                            }`}
                         >
                           <td className="px-6 py-4 font-bold text-slate-900 text-[14px]">
                             {it.name}
@@ -697,7 +646,7 @@ function PrescriptionView() {
 
       {/* Cột phải: Thanh toán & Tổng tiền */}
       <div className="w-full xl:w-[400px] flex flex-col gap-6 shrink-0 pb-6 overflow-y-auto pl-1">
-        
+
         {/* Hóa đơn tóm tắt */}
         <div className="bg-white rounded-[16px] border border-slate-200 p-6 shadow-sm">
           <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-4 border-b border-slate-100 pb-3">Chi tiết thanh toán</h3>
@@ -715,7 +664,7 @@ function PrescriptionView() {
               <span className="font-bold text-slate-900">{vat.toLocaleString()}₫</span>
             </div>
           </div>
-          
+
           <div className="mt-6 pt-5 border-t border-slate-200">
             <div className="flex items-end justify-between">
               <div className="text-[12px] font-black text-slate-900 uppercase tracking-widest leading-tight">Tổng tiền thanh toán</div>
@@ -728,37 +677,34 @@ function PrescriptionView() {
         <div className="bg-white rounded-[16px] border border-slate-200 p-6 shadow-sm">
           <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-4">Phương thức thanh toán</h3>
           <div className="grid grid-cols-3 gap-2">
-            <button 
+            <button
               onClick={() => setPaymentMethod("CASH")}
-              className={`flex flex-col items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all relative ${
-                paymentMethod === "CASH" 
-                  ? "border-[#0057cd] bg-[#f2f3ff] text-[#0057cd]" 
+              className={`flex flex-col items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all relative ${paymentMethod === "CASH"
+                  ? "border-[#0057cd] bg-[#f2f3ff] text-[#0057cd]"
                   : "border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+                }`}
             >
               {paymentMethod === "CASH" && <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#0057cd] rounded-full"></div>}
               <Banknote size={20} />
               <span className="text-[12px] font-bold">Tiền mặt</span>
             </button>
-            <button 
+            <button
               onClick={() => setPaymentMethod("CARD")}
-              className={`flex flex-col items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all relative ${
-                paymentMethod === "CARD" 
-                  ? "border-[#0057cd] bg-[#f2f3ff] text-[#0057cd]" 
+              className={`flex flex-col items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all relative ${paymentMethod === "CARD"
+                  ? "border-[#0057cd] bg-[#f2f3ff] text-[#0057cd]"
                   : "border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+                }`}
             >
               {paymentMethod === "CARD" && <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#0057cd] rounded-full"></div>}
               <CreditCard size={20} />
               <span className="text-[12px] font-bold">Thẻ quẹt</span>
             </button>
-            <button 
+            <button
               onClick={() => setPaymentMethod("QR_PAY")}
-              className={`flex flex-col items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all relative ${
-                paymentMethod === "QR_PAY" 
-                  ? "border-[#0057cd] bg-[#f2f3ff] text-[#0057cd]" 
+              className={`flex flex-col items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all relative ${paymentMethod === "QR_PAY"
+                  ? "border-[#0057cd] bg-[#f2f3ff] text-[#0057cd]"
                   : "border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+                }`}
             >
               {paymentMethod === "QR_PAY" && <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#0057cd] rounded-full"></div>}
               <QrCode size={20} />
@@ -768,8 +714,8 @@ function PrescriptionView() {
 
           <div className="mt-4">
             <label className="block text-[11px] font-bold text-slate-500 mb-2 uppercase tracking-wide">Ghi chú cấp phát</label>
-            <textarea 
-              rows={2} 
+            <textarea
+              rows={2}
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
               placeholder="Ghi chú liều dùng hoặc dặn dò đặc biệt cho bệnh nhân..."
@@ -780,7 +726,7 @@ function PrescriptionView() {
 
         {/* Nút hành động */}
         <div className="flex flex-col gap-3 mt-auto">
-          <button 
+          <button
             onClick={handleCheckout}
             disabled={prescriptionItems.length === 0 || loading}
             className="w-full bg-[#0057cd] hover:bg-[#00419e] disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-[16px] py-4.5 shadow-sm transition-all flex flex-col items-center justify-center gap-1 group relative overflow-hidden"
@@ -814,7 +760,7 @@ function PrescriptionView() {
                 <XCircle size={22} />
               </button>
             </div>
-            
+
             <div className="p-6 flex flex-col gap-6 items-center">
               {isScanning ? (
                 /* Giao diện quét camera giả lập */
@@ -833,9 +779,9 @@ function PrescriptionView() {
                   <div className="text-center text-slate-600 text-sm">
                     Hướng camera điện thoại hoặc mã QR của đơn thuốc điện tử vào khung hình, hoặc chọn một **Đơn thuốc điện tử mẫu** để thử nghiệm nhanh:
                   </div>
-                  
+
                   <div className="flex flex-col gap-3">
-                    <button 
+                    <button
                       onClick={() => handleScanSimulation("RX-99281-HAN")}
                       className="w-full p-4 rounded-xl border border-blue-200 hover:bg-blue-50/50 hover:border-[#0057cd] transition-all text-left flex items-start gap-3.5 group"
                     >
@@ -853,7 +799,7 @@ function PrescriptionView() {
                       </div>
                     </button>
 
-                    <button 
+                    <button
                       onClick={() => handleScanSimulation("RX-112233-DNA")}
                       className="w-full p-4 rounded-xl border border-slate-200 hover:bg-blue-50/50 hover:border-[#0057cd] transition-all text-left flex items-start gap-3.5 group"
                     >
@@ -871,7 +817,7 @@ function PrescriptionView() {
                       </div>
                     </button>
 
-                    <button 
+                    <button
                       onClick={() => handleScanSimulation("RX-445566-HCM")}
                       className="w-full p-4 rounded-xl border border-slate-200 hover:bg-blue-50/50 hover:border-[#0057cd] transition-all text-left flex items-start gap-3.5 group"
                     >
@@ -910,7 +856,7 @@ function PrescriptionView() {
                 <XCircle size={22} />
               </button>
             </div>
-            
+
             <div className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[75vh] scrollbar-hide">
               {/* Cảnh báo lô cận hạn nếu backend trả về */}
               {invoiceData.warnings && invoiceData.warnings.length > 0 && (
@@ -1013,13 +959,13 @@ function PrescriptionView() {
             </div>
 
             <div className="px-6 py-5 border-t border-slate-100 flex gap-3">
-              <button 
+              <button
                 onClick={() => window.print()}
                 className="flex-1 py-3 bg-[#0057cd] hover:bg-[#00419e] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow"
               >
                 <Printer size={18} /> In hóa đơn (F10)
               </button>
-              <button 
+              <button
                 onClick={() => setShowInvoiceModal(false)}
                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
               >
@@ -1043,7 +989,7 @@ function RetailView() {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [remarks, setRemarks] = useState("");
-  
+
   // Checkout Modal
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceData, setInvoiceData] = useState<any>(null);
@@ -1157,25 +1103,25 @@ function RetailView() {
     <div className="h-full flex flex-col xl:flex-row gap-6 overflow-hidden">
       {/* Cột trái: Tìm kiếm & Giỏ hàng */}
       <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-6 pb-6">
-        
+
         {/* Tìm kiếm */}
         <div className="relative shrink-0">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
             <SearchIcon size={18} />
           </div>
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Tìm kiếm nhanh theo tên thuốc hoặc hoạt chất để thêm vào giỏ hàng..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-[12px] text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0057cd] transition-all shadow-sm" 
+            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-[12px] text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0057cd] transition-all shadow-sm"
           />
 
           {/* Kết quả tìm kiếm dropdown */}
           {searchResults.length > 0 && (
             <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl border border-slate-200 shadow-xl max-h-72 overflow-y-auto z-40 divide-y divide-slate-100">
               {searchResults.map((med) => (
-                <button 
+                <button
                   key={med.id}
                   onClick={() => addToCart(med)}
                   className="w-full p-4 text-left hover:bg-slate-50 transition-colors flex items-center justify-between"
@@ -1229,7 +1175,7 @@ function RetailView() {
               {cart.reduce((sum, it) => sum + it.quantity, 0)} SẢN PHẨM
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-x-auto">
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center p-8 text-center min-h-[250px]">
@@ -1267,18 +1213,18 @@ function RetailView() {
                         <td className="px-4 py-4 text-slate-500 text-[13px]">{it.active_ingredient || "N/A"}</td>
                         <td className="px-4 py-4 text-center">
                           <div className="flex items-center justify-center gap-3">
-                            <button 
-                              onClick={() => updateQty(it.id, -1, it.stock)} 
+                            <button
+                              onClick={() => updateQty(it.id, -1, it.stock)}
                               className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100"
                             >
-                              <Minus size={14}/>
+                              <Minus size={14} />
                             </button>
                             <span className="font-bold text-[15px] text-slate-900 w-6 text-center">{String(it.quantity).padStart(2, "0")}</span>
-                            <button 
-                              onClick={() => updateQty(it.id, 1, it.stock)} 
+                            <button
+                              onClick={() => updateQty(it.id, 1, it.stock)}
                               className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100"
                             >
-                              <Plus size={14}/>
+                              <Plus size={14} />
                             </button>
                           </div>
                         </td>
@@ -1296,7 +1242,7 @@ function RetailView() {
 
       {/* Cột phải: Thanh toán */}
       <div className="w-full xl:w-[380px] flex flex-col gap-6 shrink-0 pb-6 pl-1">
-        
+
         {/* Tóm tắt khách sỉ/ VIP */}
         <div className="bg-white border border-slate-200 rounded-[16px] p-5 shadow-sm text-center">
           <div className="flex justify-between items-center mb-4">
@@ -1324,7 +1270,7 @@ function RetailView() {
               <span className="text-slate-900 font-bold">{vat.toLocaleString()}₫</span>
             </div>
           </div>
-          
+
           <div className="mt-6 pt-5 border-t border-slate-200 flex items-end justify-between">
             <div className="text-[13px] font-black text-slate-900 uppercase tracking-widest pb-1">TỔNG THANH TOÁN</div>
             <div className="text-[28px] font-black text-[#0057cd] leading-none tracking-tighter">{total.toLocaleString()}₫</div>
@@ -1335,35 +1281,33 @@ function RetailView() {
         <div className="bg-white border border-slate-200 rounded-[16px] p-5 shadow-sm">
           <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-3">Hình thức thanh toán</h3>
           <div className="grid grid-cols-2 gap-2">
-            <button 
+            <button
               onClick={() => setPaymentMethod("CASH")}
-              className={`flex items-center justify-center gap-2 py-3.5 border-2 rounded-xl font-bold text-sm transition-all ${
-                paymentMethod === "CASH" 
-                  ? "border-[#0057cd] bg-[#f0f6ff] text-[#0057cd]" 
+              className={`flex items-center justify-center gap-2 py-3.5 border-2 rounded-xl font-bold text-sm transition-all ${paymentMethod === "CASH"
+                  ? "border-[#0057cd] bg-[#f0f6ff] text-[#0057cd]"
                   : "border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
+                }`}
             >
-              <Banknote size={16}/> Tiền mặt
+              <Banknote size={16} /> Tiền mặt
             </button>
-            <button 
+            <button
               onClick={() => setPaymentMethod("QR_PAY")}
-              className={`flex items-center justify-center gap-2 py-3.5 border-2 rounded-xl font-bold text-sm transition-all ${
-                paymentMethod === "QR_PAY" 
-                  ? "border-[#0057cd] bg-[#f0f6ff] text-[#0057cd]" 
+              className={`flex items-center justify-center gap-2 py-3.5 border-2 rounded-xl font-bold text-sm transition-all ${paymentMethod === "QR_PAY"
+                  ? "border-[#0057cd] bg-[#f0f6ff] text-[#0057cd]"
                   : "border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
+                }`}
             >
-              <QrCode size={16}/> VNPay/QR
+              <QrCode size={16} /> VNPay/QR
             </button>
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleCheckout}
           disabled={cart.length === 0}
           className="w-full bg-[#0057cd] hover:bg-[#00419e] disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl py-5 shadow-sm transition-all flex items-center justify-center gap-2 font-black text-[16px] uppercase tracking-wide mt-auto"
         >
-          <Printer size={20}/>
+          <Printer size={20} />
           XÁC NHẬN & IN HÓA ĐƠN
         </button>
       </div>
@@ -1382,7 +1326,7 @@ function RetailView() {
                 <XCircle size={22} />
               </button>
             </div>
-            
+
             <div className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[75vh] scrollbar-hide">
               {/* Warnings nếu có */}
               {invoiceData.warnings && invoiceData.warnings.length > 0 && (
@@ -1467,13 +1411,13 @@ function RetailView() {
             </div>
 
             <div className="px-6 py-5 border-t border-slate-100 flex gap-3">
-              <button 
+              <button
                 onClick={() => window.print()}
                 className="flex-1 py-3 bg-[#0057cd] hover:bg-[#00419e] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow"
               >
                 <Printer size={18} /> In hóa đơn (F10)
               </button>
-              <button 
+              <button
                 onClick={() => setShowInvoiceModal(false)}
                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
               >

@@ -53,6 +53,9 @@ export class Medicine extends Document {
 
   @Prop()
   unit: string;
+
+  @Prop()
+  expiry_date?: string;
 }
 
 export const MedicineSchema = SchemaFactory.createForClass(Medicine);

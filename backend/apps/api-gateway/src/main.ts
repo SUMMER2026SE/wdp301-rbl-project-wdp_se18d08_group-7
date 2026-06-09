@@ -10,7 +10,7 @@ async function bootstrap() {
   while (retries > 0) {
     try {
       const app = await NestFactory.create(AppGatewayModule, {
-        logger: ['error', 'warn', 'log'], // Chỉ log error, warn, log (tắt verbose, debug)
+        logger: ['error', 'warn'], // Chỉ log error, warn
       });
 
   // Global Validation Pipe — tự động validate DTO bằng class-validator

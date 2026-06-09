@@ -1,22 +1,20 @@
-import { Controller, Get, Query, HttpException, HttpStatus, UseInterceptors, Param, Body, Patch } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Medicine } from './medicine.schema';
-import { MedicineBatch } from '../../../inventory-service/src/medicine-batch.schema';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
+import { Medicine } from './schemas/medicine.schema';
+import { MedicineBatch } from './schemas/medicine-batch.schema';
 
-@ApiTags('💊 Medicines')
-@Controller('api/medicines')
-export class MedicineController {
+@Injectable()
+export class MedicineService {
+  private readonly logger = new Logger(MedicineService.name);
+
   constructor(
     @InjectModel(Medicine.name) private readonly medicineModel: Model<Medicine>,
     @InjectModel(MedicineBatch.name) private readonly batchModel: Model<MedicineBatch>,
   ) {}
 
-  @Get('filters')
-  @ApiOperation({ summary: 'Lấy danh sách các bộ lọc có sẵn' })
-  async getFilters() {
+  async getMedicineFilters() {
     try {
       const categories = await this.medicineModel.distinct('category').exec();
       const classifications = await this.medicineModel.distinct('drug_classification').exec();
@@ -25,17 +23,15 @@ export class MedicineController {
         classifications: classifications.filter(c => c)
       };
     } catch (error) {
-      throw new HttpException(error.message || 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new RpcException(error.message || 'Lỗi lấy bộ lọc thuốc');
     }
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Lấy chi tiết 1 loại thuốc' })
-  async getMedicineById(@Param('id') id: string) {
+  async getMedicineById(id: string) {
     try {
       const medicine = await this.medicineModel.findById(id).exec();
       if (!medicine) {
-        throw new HttpException('Medicine not found', HttpStatus.NOT_FOUND);
+        throw new RpcException('Medicine not found');
       }
 
       // Lấy danh sách lô hàng khả dụng
@@ -59,21 +55,15 @@ export class MedicineController {
         minStock: 50
       };
     } catch (error) {
-      throw new HttpException(error.message || 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new RpcException(error.message || 'Lỗi lấy chi tiết thuốc');
     }
   }
 
-  @Patch(':id/status')
-  @ApiOperation({ summary: 'Cập nhật trạng thái / tồn kho của thuốc' })
-  async updateMedicineStatus(
-    @Param('id') id: string,
-    @Body('status') status: string,
-    @Body('stock') stock?: number
-  ) {
+  async updateMedicineStatus(id: string, status: string, stock?: number) {
     try {
       const medicine = await this.medicineModel.findById(id).exec();
       if (!medicine) {
-        throw new HttpException('Medicine not found', HttpStatus.NOT_FOUND);
+        throw new RpcException('Medicine not found');
       }
 
       const updateData: any = { status };
@@ -122,27 +112,23 @@ export class MedicineController {
         minStock: 50
       };
     } catch (error) {
-      throw new HttpException(error.message || 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new RpcException(error.message || 'Lỗi cập nhật trạng thái thuốc');
     }
   }
 
-  @Get()
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(60000) // Cache for 60 seconds
-  @ApiOperation({ summary: 'Lấy danh sách thuốc (kết nối Mongoose & Vector DB)' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiQuery({ name: 'category', required: false, type: String })
-  @ApiQuery({ name: 'classification', required: false, type: String })
-  async getMedicines(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-    @Query('search') search = '',
-    @Query('category') category = '',
-    @Query('classification') classification = '',
-  ) {
+  async listMedicines(query: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    classification?: string;
+  }) {
     try {
+      const page = query.page || 1;
+      const limit = query.limit || 10;
+      const search = query.search || '';
+      const category = query.category || '';
+      const classification = query.classification || '';
       const skip = (page - 1) * limit;
 
       if (search) {
@@ -151,38 +137,14 @@ export class MedicineController {
         if (category) aiServiceUrl += `&category=${encodeURIComponent(category)}`;
         if (classification) aiServiceUrl += `&classification=${encodeURIComponent(classification)}`;
         
-        let aiData = [];
-        let aiTotal = 0;
-        let fetchSuccess = false;
-
-        try {
-          const response = await fetch(aiServiceUrl);
-          if (response.ok) {
-            const resJson = await response.json();
-            aiData = resJson.data || [];
-            aiTotal = resJson.total || aiData.length;
-            fetchSuccess = true;
-          }
-        } catch (err) {
-          console.warn('AI Service connection failed, falling back to database regex search:', err.message);
+        const response = await fetch(aiServiceUrl);
+        if (!response.ok) {
+          throw new RpcException('Failed to fetch from AI Service');
         }
-
-        if (!fetchSuccess) {
-          const filterQuery: any = {};
-          if (category) filterQuery.category = category;
-          if (classification) filterQuery.drug_classification = classification;
-          filterQuery.$or = [
-            { name: { $regex: search, $options: 'i' } },
-            { active_ingredient: { $regex: search, $options: 'i' } }
-          ];
-
-          const [fallbackData, fallbackTotal] = await Promise.all([
-            this.medicineModel.find(filterQuery).skip(skip).limit(Number(limit)).exec(),
-            this.medicineModel.countDocuments(filterQuery).exec(),
-          ]);
-          aiData = fallbackData;
-          aiTotal = fallbackTotal;
-        }
+        
+        const resJson = await response.json();
+        const aiData = resJson.data || [];
+        const aiTotal = resJson.total || aiData.length;
 
         // Truy vấn lô hàng cho các kết quả từ AI Service
         const aiMedIds = aiData.map((med: any) => (med._id || med.id).toString());
@@ -286,10 +248,7 @@ export class MedicineController {
         };
       }
     } catch (error) {
-      throw new HttpException(
-        error.message || 'Internal server error',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new RpcException(error.message || 'Lỗi danh sách thuốc');
     }
   }
 }

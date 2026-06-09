@@ -20,15 +20,15 @@ import { Cache } from 'cache-manager';
 import { lastValueFrom } from 'rxjs';
 import { sendKafkaMessage, subscribeToKafkaTopics } from '../common/kafka.helper';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { LoginDto } from '../dto/login.dto';
+import { RegisterDto } from '../dto/register.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 @ApiTags('🔐 Authentication')
 @Controller('api/auth')
-export class AuthGwController implements OnModuleInit {
+export class AuthController implements OnModuleInit {
   // TTL cache: 1 giờ (tính bằng mili-giây)
   private readonly CACHE_TTL = 3600 * 1000;
 

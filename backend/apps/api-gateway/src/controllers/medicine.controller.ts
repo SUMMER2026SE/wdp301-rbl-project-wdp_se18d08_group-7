@@ -1,0 +1,69 @@
+import { Controller, Get, Query, UseInterceptors, Param, Body, Patch, Inject, OnModuleInit } from '@nestjs/common';
+import { ClientKafka } from '@nestjs/microservices';
+import { sendKafkaMessage, subscribeToKafkaTopics } from '../common/kafka.helper';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
+
+@ApiTags('💊 Medicines')
+@Controller('api/medicines')
+export class MedicineController implements OnModuleInit {
+  constructor(
+    @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientKafka,
+  ) {}
+
+  async onModuleInit() {
+    await subscribeToKafkaTopics(this.inventoryClient, [
+      'inventory.medicine.list',
+      'inventory.medicine.get_by_id',
+      'inventory.medicine.update_status',
+      'inventory.medicine.get_filters',
+    ]);
+  }
+
+  @Get('filters')
+  @ApiOperation({ summary: 'Lấy danh sách các bộ lọc có sẵn' })
+  async getFilters() {
+    return await sendKafkaMessage(this.inventoryClient, 'inventory.medicine.get_filters', {});
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Lấy chi tiết 1 loại thuốc' })
+  async getMedicineById(@Param('id') id: string) {
+    return await sendKafkaMessage(this.inventoryClient, 'inventory.medicine.get_by_id', { id });
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Cập nhật trạng thái / tồn kho của thuốc' })
+  async updateMedicineStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @Body('stock') stock?: number
+  ) {
+    return await sendKafkaMessage(this.inventoryClient, 'inventory.medicine.update_status', { id, status, stock });
+  }
+
+  @Get()
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60000) // Cache for 60 seconds
+  @ApiOperation({ summary: 'Lấy danh sách thuốc (kết nối Mongoose & Vector DB)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'category', required: false, type: String })
+  @ApiQuery({ name: 'classification', required: false, type: String })
+  async getMedicines(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('search') search = '',
+    @Query('category') category = '',
+    @Query('classification') classification = '',
+  ) {
+    return await sendKafkaMessage(this.inventoryClient, 'inventory.medicine.list', {
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      category,
+      classification,
+    });
+  }
+}
