@@ -45,4 +45,24 @@ export class MedicineController {
       throw new RpcException(error.message || 'Lỗi hệ thống khi lấy bộ lọc thuốc');
     }
   }
+
+  @MessagePattern('inventory.medicine.stats')
+  async getInventoryStats() {
+    try {
+      return await this.medicineService.getInventoryStats();
+    } catch (error) {
+      if (error instanceof RpcException) throw error;
+      throw new RpcException(error.message || 'Lỗi hệ thống khi lấy thống kê tồn kho');
+    }
+  }
+
+  @MessagePattern('inventory.medicine.expiration_report')
+  async getExpirationReport() {
+    try {
+      return await this.medicineService.getExpirationReport();
+    } catch (error) {
+      if (error instanceof RpcException) throw error;
+      throw new RpcException(error.message || 'Lỗi hệ thống khi lấy báo cáo hết hạn');
+    }
+  }
 }

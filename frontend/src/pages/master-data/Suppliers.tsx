@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Search, Building2, AlertTriangle, CheckCircle2, ShieldAlert, X } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -7,7 +7,7 @@ export function Suppliers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Form State
-  const [formData, setFormData] = useState({ name: "", phone: "", gdp_expiry_date: "" });
+  const [formData, setFormData] = useState({ name: "", phone: "", gdpExpiry: "" });
 
   useEffect(() => {
     fetch('/api/suppliers')
@@ -35,7 +35,7 @@ export function Suppliers() {
 
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.gdp_expiry_date) return;
+    if (!formData.name || !formData.gdpExpiry) return;
     
     try {
       const res = await fetch('/api/suppliers', {
@@ -44,20 +44,20 @@ export function Suppliers() {
         body: JSON.stringify({
           name: formData.name,
           phone: formData.phone || "N/A",
-          gdp_expiry_date: formData.gdp_expiry_date,
+          gdp_expiry_date: formData.gdpExpiry,
           status: "ACTIVE"
         })
       });
       const newSupplier = await res.json();
       setSuppliers([...suppliers, newSupplier]);
       setIsModalOpen(false);
-      setFormData({ name: "", phone: "", gdp_expiry_date: "" });
+      setFormData({ name: "", phone: "", gdpExpiry: "" });
     } catch (err) {
       console.error('Failed to create supplier', err);
     }
   };
 
-  const isFormExpired = isExpired(formData.gdp_expiry_date);
+  const isFormExpired = isExpired(formData.gdpExpiry);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">

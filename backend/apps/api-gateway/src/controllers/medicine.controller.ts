@@ -17,6 +17,8 @@ export class MedicineController implements OnModuleInit {
       'inventory.medicine.get_by_id',
       'inventory.medicine.update_status',
       'inventory.medicine.get_filters',
+      'inventory.medicine.stats',
+      'inventory.medicine.expiration_report',
     ]);
   }
 
@@ -24,6 +26,18 @@ export class MedicineController implements OnModuleInit {
   @ApiOperation({ summary: 'Lấy danh sách các bộ lọc có sẵn' })
   async getFilters() {
     return await sendKafkaMessage(this.inventoryClient, 'inventory.medicine.get_filters', {});
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Lấy thống kê tồn kho' })
+  async getStats() {
+    return await sendKafkaMessage(this.inventoryClient, 'inventory.medicine.stats', {});
+  }
+
+  @Get('expiration-report')
+  @ApiOperation({ summary: 'Lấy báo cáo hết hạn của các lô hàng' })
+  async getExpirationReport() {
+    return await sendKafkaMessage(this.inventoryClient, 'inventory.medicine.expiration_report', {});
   }
 
   @Get(':id')
@@ -43,8 +57,6 @@ export class MedicineController implements OnModuleInit {
   }
 
   @Get()
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(60000) // Cache for 60 seconds
   @ApiOperation({ summary: 'Lấy danh sách thuốc (kết nối Mongoose & Vector DB)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })

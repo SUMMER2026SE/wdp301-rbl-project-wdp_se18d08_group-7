@@ -1,12 +1,12 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { ChevronDown, LogOut } from "lucide-react";
 import { Logo } from "./Logo";
 
 export interface NavItem {
   name: string;
   href?: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   subItems?: { name: string; href: string }[];
 }
 

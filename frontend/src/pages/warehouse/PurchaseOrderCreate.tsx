@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Building2, AlertTriangle, Search, Plus, Trash2, CheckCircle2, ShieldAlert, PackagePlus } from "lucide-react";
 import { motion } from "motion/react";
 
 export function PurchaseOrderCreate() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { prefilledMedicineId?: string } | null;
+
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [medicines, setMedicines] = useState<any[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
@@ -29,6 +32,21 @@ export function PurchaseOrderCreate() {
       .then(data => setMedicines(data.data || data))
       .catch(err => console.error(err));
   }, []);
+
+  // Prefill effect when navigation state is present
+  useEffect(() => {
+    if (state?.prefilledMedicineId && medicines.length > 0) {
+      const med = medicines.find(m => m.id === state.prefilledMedicineId);
+      if (med) {
+        setSelectedMedicineId(state.prefilledMedicineId);
+        setUnitPrice(med.price || 0);
+        setQuantity(100); // Prefill a sensible restock quantity
+        if (med.supplierId) {
+          setSelectedSupplierId(med.supplierId);
+        }
+      }
+    }
+  }, [state, medicines]);
 
   // Lấy thông tin NCC đang chọn
   const supplier = suppliers.find(s => s._id === selectedSupplierId);

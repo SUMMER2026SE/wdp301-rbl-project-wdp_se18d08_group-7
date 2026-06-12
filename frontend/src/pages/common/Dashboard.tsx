@@ -252,6 +252,7 @@ function StatCard({
   trend, 
   trendUp 
 }: { 
+  key?: any;
   title: string; 
   value: string; 
   icon: ReactNode; 
