@@ -7,25 +7,19 @@ import time
 import os
 import re
 import traceback
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import pymongo
 
-router = APIRouter()
-
-def get_db_connection():
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        raise Exception("DATABASE_URL is not set")
-    # Clean pgbouncer if present
-    conn_str = db_url.replace('?pgbouncer=true', '')
-    # Add sslmode if not local
-    if "localhost" not in conn_str and "127.0.0.1" not in conn_str:
-        if "sslmode" not in conn_str:
-            if "?" in conn_str:
-                conn_str += "&sslmode=require"
-            else:
-                conn_str += "?sslmode=require"
-    return psycopg2.connect(conn_str, cursor_factory=RealDictCursor)
+def get_mongo_collection():
+    uri = os.getenv("MONGODB_URI") or os.getenv("MONGODB_CONNECTION_STRING")
+    if not uri:
+        raise Exception("MongoDB URI not set")
+    client = pymongo.MongoClient(uri)
+    db_name = "WDP201"
+    if "net/" in uri:
+        parts = uri.split("net/")
+        if len(parts) > 1:
+            db_name = parts[1].split("?")[0]
+    return client[db_name]["medicines"]
 
 @router.post("/api/prescription")
 async def recommend_prescription(
@@ -79,6 +73,55 @@ async def get_medicines_ai(
                 raise HTTPException(status_code=503, detail="Qdrant client not initialized")
             
             query_vector = await get_embedding(search)
+            
+            # Fallback to SQL if Cohere API returns zero vector (missing API key)
+            if not any(query_vector):
+                collection = get_mongo_collection()
+                query = {}
+                query["$or"] = [
+                    {"name": {"$regex": search, "$options": "i"}},
+                    {"thong_tin_chi_tiet.Thành phần": {"$regex": search, "$options": "i"}},
+                    {"active_ingredient": {"$regex": search, "$options": "i"}}
+                ]
+                if category:
+                    query["category"] = category
+                if classification:
+                    query["drug_classification"] = classification
+                    
+                total = collection.count_documents(query)
+                cursor = collection.find(query).skip(skip).limit(limit)
+                
+                mapped_data = []
+                for row in cursor:
+                    stock = row.get("stock") or row.get("stock_quantity") or 0
+                    row_id = str(row.get('_id'))
+                    details = row.get("thong_tin_chi_tiet") or {}
+                    
+                    price_raw = details.get("Giá bán") or details.get("price") or row.get("price")
+                    try:
+                        price = int(float(re.sub(r'[^0-9.]', '', str(price_raw)))) if price_raw else 50000
+                    except:
+                        price = 50000
+                        
+                    mapped_data.append({
+                        "id": str(row_id),
+                        "name": row.get("name"),
+                        "category": row.get("category") or details.get("Danh mục") or "Chưa phân loại",
+                        "price": price,
+                        "stock": stock,
+                        "minStock": 50,
+                        "status": row.get("status") or ("In Stock" if stock > 50 else ("Low Stock" if stock > 0 else "Out of Stock")),
+                        "expiry": row.get("expiry_date") or "2026-12-31",
+                        "image": row.get("image") or row.get("image_url") or "",
+                        "active_ingredient": details.get("Thành phần") or details.get("active_ingredient") or row.get("active_ingredient") or ""
+                    })
+                    
+                return {
+                    "data": mapped_data,
+                    "total": total,
+                    "page": page,
+                    "limit": limit
+                }
             
             # Xây dựng Qdrant Filter
             must_conditions = []
@@ -136,38 +179,38 @@ async def get_medicines_ai(
             }
             
         else:
-            # 2. SQL Pagination (fetch full list)
-            conn = get_db_connection()
-            cur = conn.cursor()
+            # 2. MongoDB Pagination (fetch full list)
+            collection = get_mongo_collection()
             
             # Get total count
-            cur.execute("SELECT COUNT(*) as count FROM public.medicines")
-            total = cur.fetchone()["count"]
+            total = collection.count_documents({})
             
             # Get paginated records
-            cur.execute(
-                "SELECT * FROM public.medicines ORDER BY id ASC LIMIT %s OFFSET %s",
-                (limit, skip)
-            )
-            rows = cur.fetchall()
-            cur.close()
-            conn.close()
+            cursor = collection.find({}).skip(skip).limit(limit)
             
             mapped_data = []
-            for row in rows:
-                stock = row.get("stock_quantity") or 0
-                row_id = row.get('id')
+            for row in cursor:
+                stock = row.get("stock") or row.get("stock_quantity") or 0
+                row_id = str(row.get('_id'))
+                details = row.get("thong_tin_chi_tiet") or {}
+                
+                price_raw = details.get("Giá bán") or details.get("price") or row.get("price")
+                try:
+                    price = int(float(re.sub(r'[^0-9.]', '', str(price_raw)))) if price_raw else 50000
+                except:
+                    price = 50000
+                    
                 mapped_data.append({
-                    "id": f"MED-SQL{str(row_id).zfill(5)}" if isinstance(row_id, int) else str(row_id),
+                    "id": str(row_id),
                     "name": row.get("name"),
-                    "category": row.get("category") or "Chưa phân loại",
-                    "price": row.get("price") or 0,
+                    "category": row.get("category") or details.get("Danh mục") or "Chưa phân loại",
+                    "price": price,
                     "stock": stock,
                     "minStock": 50,
-                    "status": "In Stock" if stock > 50 else ("Low Stock" if stock > 0 else "Out of Stock"),
-                    "expiry": "2026-12-31",
-                    "image": row.get("image_url") or "",
-                    "active_ingredient": row.get("active_ingredient") or ""
+                    "status": row.get("status") or ("In Stock" if stock > 50 else ("Low Stock" if stock > 0 else "Out of Stock")),
+                    "expiry": row.get("expiry_date") or "2026-12-31",
+                    "image": row.get("image") or row.get("image_url") or "",
+                    "active_ingredient": details.get("Thành phần") or details.get("active_ingredient") or row.get("active_ingredient") or ""
                 })
                 
             return {
